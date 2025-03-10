@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements">
+    <ui:ScrollView>
+        <ui:VisualElement name="container" class="container">
+            <ui:Label text="WebGL Build Settings" class="header" />
+
+            <!-- Platform Check -->
+            <ui:Label text="Current Platform: " name="currentPlatformLabel" class="platform-label" />
+
+            <!-- WebGL Specific Settings -->
+            <ui:VisualElement class="settings-card">
+                <ui:Label text="WebGL Player Settings" class="card-header" />
+                <ui:Toggle label="Enable Decompression Fallback" name="decompressionFallbackToggle" class="settings-toggle" tooltip="Enable decompression fallback for browsers that don't support Brotli compression" />
+
+                <!-- Apply Button -->
+                <ui:Button text="Apply WebGL Settings" name="setAllButton" class="apply-button" />
+            </ui:VisualElement>
+
+            <!-- Server Setup section will be added dynamically -->
+
+        </ui:VisualElement>
+    </ui:ScrollView>
+</ui:UXML>

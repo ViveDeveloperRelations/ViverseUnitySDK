@@ -1,0 +1,95 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<engine:UXML xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:engine="UnityEngine.UIElements"
+             xmlns:editor="UnityEditor.UIElements">
+    <engine:ScrollView>
+        <engine:VisualElement class="container">
+            <engine:Label text="VIVERSE SDK Demo" class="title"/>
+
+            <!-- Configuration Section -->
+            <engine:VisualElement class="card">
+                <engine:Label text="Configuration" class="card-title"/>
+                <engine:TextField label="Client ID" name="client-id-input"/>
+                <engine:Button text="Save Configuration" name="save-config-button"/>
+                <engine:Label name="config-status" class="status-text"/>
+            </engine:VisualElement>
+
+            <!-- Login Section -->
+            <engine:VisualElement class="card">
+                <engine:Label text="Login" class="card-title"/>
+                <engine:VisualElement class="button-row">
+                    <engine:Button text="Login with VIVERSE" name="login-button"/>
+                    <engine:Button text="Logout" name="logout-button"/>
+                </engine:VisualElement>
+                <engine:Label text="Login Result:" class="section-label"/>
+                <engine:TextField name="login-result" multiline="true" readonly="true" class="result-field"/>
+                <engine:Label text="Token Info:" class="section-label"/>
+                <engine:TextField name="token-result" multiline="true" readonly="true" class="result-field"/>
+            </engine:VisualElement>
+
+            <!-- Avatar Service Section -->
+            <engine:VisualElement class="card">
+                <engine:Label text="Avatar Service" class="card-title"/>
+                <engine:VisualElement class="button-row">
+                    <engine:Button text="Load Profile" name="load-profile-button"/>
+                    <engine:Button text="Load My Avatars" name="load-avatars-button"/>
+                    <engine:Button text="Load Public Avatars" name="load-public-avatars-button"/>
+                </engine:VisualElement>
+                <engine:Label text="Profile:" class="section-label"/>
+                <engine:TextField name="profile-result" multiline="true" readonly="true" class="result-field"/>
+                <engine:Label text="Avatars:" class="section-label"/>
+                <engine:VisualElement name="avatar-container" class="avatar-grid"/>
+                <engine:Button text="Cycle Through Avatars" name="cycle-avatars-button"/>
+                <engine:Slider label="Display Duration (seconds)" name="cycle-duration-slider"
+                               low-value="1" high-value="15" value="5" />
+                <engine:Label name="cycle-status-label" text="" class="status-text"/>
+
+                <!-- VRM Preview Section -->
+                <engine:Label text="VRM Preview" class="section-label"/>
+                <engine:VisualElement name="vrm-preview" class="vrm-preview">
+                    <engine:VisualElement class="preview-container">
+                        <engine:VisualElement name="vrm-viewport" class="vrm-viewport">
+                            <!-- Viewport will be rendered here -->
+                            <engine:Label text="No VRM model loaded" name="viewport-placeholder" class="viewport-placeholder"/>
+                        </engine:VisualElement>
+                        <engine:VisualElement name="animation-controls" class="animation-controls">
+                            <engine:Label text="Animation Controls" class="subsection-label"/>
+                            <engine:ScrollView name="animation-list" class="animation-list">
+                                <!-- Animation buttons will be added here dynamically -->
+                            </engine:ScrollView>
+                            <engine:VisualElement class="animation-status">
+                                <engine:Label text="Current Animation:" class="status-label"/>
+                                <engine:Label name="current-animation" class="current-animation-label" text="None"/>
+                            </engine:VisualElement>
+                        </engine:VisualElement>
+                    </engine:VisualElement>
+                    <engine:VisualElement name="preview-controls" class="preview-controls">
+                        <engine:Button name="reset-view-button" text="Reset View" class="control-button"/>
+                        <engine:Button name="toggle-rotation-button" text="Toggle Auto-Rotate" class="control-button"/>
+                    </engine:VisualElement>
+                </engine:VisualElement>
+            </engine:VisualElement>
+
+            <!-- Leaderboard Section -->
+            <engine:VisualElement class="card">
+                <engine:Label text="Leaderboard Service" class="card-title"/>
+                <engine:TextField label="App ID" name="app-id-input"/>
+                <engine:TextField label="Leaderboard Name" name="leaderboard-name-input"/>
+                <engine:TextField label="Score" name="score-input"/>
+                <engine:VisualElement class="button-row">
+                    <engine:Button text="Upload Score" name="upload-score-button"/>
+                    <engine:Button text="Get Leaderboard" name="get-leaderboard-button"/>
+                </engine:VisualElement>
+                <engine:Label text="Results:" class="section-label"/>
+                <engine:TextField name="leaderboard-result" multiline="true" readonly="true" class="result-field"/>
+            </engine:VisualElement>
+
+            <!-- Loading Overlay -->
+            <engine:VisualElement name="loading-overlay" class="loading-overlay" style="display: none">
+                <engine:VisualElement class="loading-container">
+                    <engine:Label name="loading-text" text="Loading..." class="loading-text"/>
+                </engine:VisualElement>
+            </engine:VisualElement>
+        </engine:VisualElement>
+    </engine:ScrollView>
+</engine:UXML>

@@ -1,0 +1,18 @@
+{
+    "name": "ViverseAPIEditorTests",
+    "rootNamespace": "",
+    "references": [
+        "GUID:83f47babfadef9547bca17d8148b0e87"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

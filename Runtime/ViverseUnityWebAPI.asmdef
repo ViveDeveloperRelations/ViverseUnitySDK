@@ -1,0 +1,31 @@
+{
+    "name": "ViverseUnityWebAPI",
+    "rootNamespace": "viverse",
+    "references": [
+        "GUID:05dd262a0c0a2f841b8252c8c3815582",
+        "GUID:8d76e605759c3f64a957d63ef96ada7c"
+    ],
+    "includePlatforms": [
+        "Editor",
+        "WebGL"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "com.vrmc.vrm",
+            "expression": "0.128.2",
+            "define": "UNI_VRM_INSTALLED"
+        },
+        {
+            "name": "com.vrmc.gltf",
+            "expression": "0.128.2",
+            "define": "UNI_GLTF_INSTALLED"
+        }
+    ],
+    "noEngineReferences": false
+}

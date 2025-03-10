@@ -1,0 +1,195 @@
+﻿.container {
+    padding: 16px;
+    flex-grow: 1;
+}
+
+.header {
+    font-size: 20px;
+    -unity-font-style: bold;
+    margin-bottom: 16px;
+    color: #e0e0e0;
+}
+
+.platform-label {
+    margin-bottom: 16px;
+    padding: 4px;
+    border-radius: 4px;
+    background-color: rgba(50, 50, 50, 0.3);
+}
+
+.settings-card {
+    background-color: rgba(40, 40, 40, 0.5);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 16px;
+}
+
+.card-header {
+    font-size: 16px;
+    -unity-font-style: bold;
+    margin-bottom: 12px;
+    color: #e0e0e0;
+}
+
+.settings-toggle {
+    margin: 8px 0;
+}
+
+.apply-button {
+    margin-top: 16px;
+    padding: 8px 16px;
+    background-color: #42A5F5;
+    border-radius: 4px;
+    color: white;
+    -unity-font-style: bold;
+}
+
+.apply-button:hover {
+    background-color: #64B5F6;
+}
+
+.apply-button:active {
+    background-color: #2196F3;
+}
+
+/* Server Setup UI */
+.settings-group {
+    background-color: rgba(40, 40, 40, 0.5);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 16px;
+}
+
+.section-header {
+    font-size: 16px;
+    -unity-font-style: bold;
+    margin-bottom: 12px;
+    color: #e0e0e0;
+    border-bottom-width: 1px;
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+    padding-bottom: 8px;
+}
+
+.step-container {
+    margin: 8px 0 16px 0;
+    padding: 8px;
+    background-color: rgba(30, 30, 30, 0.5);
+    border-radius: 4px;
+}
+
+.step-label {
+    font-size: 14px;
+    -unity-font-style: bold;
+    margin-bottom: 8px;
+}
+
+.status-label {
+    margin: 4px 0 8px 0;
+    padding: 4px 8px;
+    border-radius: 2px;
+    background-color: rgba(0, 0, 0, 0.2);
+}
+
+.setup-button {
+    margin-top: 8px;
+    padding: 6px 12px;
+    background-color: #607D8B;
+    border-radius: 4px;
+    color: white;
+}
+
+.setup-button:hover {
+    background-color: #78909C;
+}
+
+.setup-button:active {
+    background-color: #455A64;
+}
+
+.setup-button:disabled {
+    background-color: #455A64;
+    opacity: 0.5;
+}
+
+.action-button {
+    margin-top: 8px;
+    padding: 6px 12px;
+    background-color: #FF9800;
+    border-radius: 4px;
+    color: white;
+}
+
+.action-button:hover {
+    background-color: #FFA726;
+}
+
+.action-button:active {
+    background-color: #FB8C00;
+}
+
+.server-toggle {
+    margin-top: 8px;
+}
+
+/* Package Installation UI */
+.package-description {
+    margin: 4px 0 12px 0;
+    color: #b0b0b0;
+    white-space: normal;
+}
+
+.package-list {
+    margin: 8px 0;
+    padding: 8px;
+    background-color: rgba(30, 30, 30, 0.5);
+    border-radius: 4px;
+}
+
+.package-item {
+    flex-direction: row;
+    align-items: center;
+    margin: 4px 0;
+    padding: 4px;
+    border-radius: 2px;
+    background-color: rgba(0, 0, 0, 0.2);
+}
+
+.status-icon {
+    margin-right: 8px;
+    width: 20px;
+    -unity-text-align: middle-center;
+}
+
+.package-name {
+    flex-grow: 1;
+}
+
+/* Information Messages */
+.info-message {
+    margin-top: 8px;
+    padding: 8px;
+    background-color: rgba(66, 66, 120, 0.3);
+    border-radius: 4px;
+    color: #b0b0b0;
+    white-space: normal;
+}
+
+.package-info {
+    margin-top: 12px;
+    padding: 8px;
+    background-color: rgba(66, 66, 120, 0.3);
+    border-radius: 4px;
+    color: #b0b0b0;
+    white-space: normal;
+    -unity-font-style: italic;
+}
+
+/* Warning Messages */
+.warning-message {
+    margin-top: 8px;
+    padding: 8px;
+    background-color: rgba(120, 66, 0, 0.3);
+    border-radius: 4px;
+    color: #ffcc80;
+    white-space: normal;
+}

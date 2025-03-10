@@ -1,0 +1,214 @@
+﻿:root {
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --border-radius: 8px;
+}
+
+.container {
+    padding: var(--spacing-md);
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.title {
+    font-size: 24px;
+    -unity-font-style: bold;
+    margin-bottom: var(--spacing-lg);
+}
+
+.card {
+    background-color: rgb(40, 40, 40);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+}
+
+.card-title {
+    font-size: 18px;
+    -unity-font-style: bold;
+    margin-bottom: var(--spacing-md);
+}
+
+.section-label {
+    margin-top: var(--spacing-md);
+    margin-bottom: var(--spacing-xs);
+    -unity-font-style: bold;
+}
+
+.button-row {
+    flex-direction: row;
+    justify-content: flex-start;
+    margin: var(--spacing-sm) 0;
+}
+
+.button-row > Button {
+    margin-right: var(--spacing-sm);
+}
+
+TextField {
+    margin: var(--spacing-xs) 0;
+}
+
+Button {
+    padding: var(--spacing-xs) var(--spacing-md);
+    border-radius: 4px;
+    background-color: rgb(78, 161, 255);
+    color: white;
+    border-width: 0;
+}
+
+Button:hover {
+    background-color: rgb(61, 133, 214);
+}
+
+Button:active {
+    background-color: rgb(45, 98, 158);
+}
+
+Button:disabled {
+    background-color: rgb(100, 100, 100);
+    opacity: 0.5;
+}
+
+.avatar-grid {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    margin-top: var(--spacing-md);
+}
+
+.avatar-grid > * {
+    margin-right: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+}
+
+.avatar-card {
+    width: 200px;
+    background-color: rgb(50, 50, 50);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-sm);
+}
+
+.avatar-image {
+    width: 100%;
+    height: 200px;
+    -unity-background-scale-mode: scale-to-fit;
+    border-radius: 4px;
+    margin-bottom: var(--spacing-sm);
+}
+
+.status-text {
+    margin-top: var(--spacing-sm);
+    color: rgb(180, 180, 180);
+}
+
+.loading-overlay {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    align-items: center;
+    justify-content: center;
+}
+
+.loading-container {
+    background-color: rgb(40, 40, 40);
+    padding: var(--spacing-lg);
+    border-radius: var(--border-radius);
+    align-items: center;
+}
+
+.loading-text {
+    color: white;
+    -unity-font-style: bold;
+}
+
+.result-field {
+    white-space: normal;
+    min-height: 150px;
+    max-height: 300px;
+    overflow: scroll;
+    -unity-text-align: upper-left;
+    font-size: 12px;
+    padding: 8px;
+}
+
+
+.vrm-preview {
+    margin-top: var(--spacing-md);
+    border-radius: var(--border-radius);
+    background-color: rgb(30, 30, 30);
+}
+
+.preview-container {
+    flex-direction: row;
+    height: 400px;
+}
+
+.vrm-viewport {
+    flex-grow: 1;
+    min-width: 60%;
+    background-color: rgb(20, 20, 20);
+    border-radius: var(--border-radius) 0 0 0;
+    align-items: center;
+    justify-content: center;
+}
+
+.viewport-placeholder {
+    color: rgb(100, 100, 100);
+    -unity-font-style: italic;
+}
+
+.animation-controls {
+    width: 40%;
+    background-color: rgb(40, 40, 40);
+    border-radius: 0 var(--border-radius) 0 0;
+    padding: var(--spacing-md);
+}
+
+.animation-list {
+    flex-grow: 1;
+    margin: var(--spacing-sm) 0;
+    max-height: 270px;
+}
+
+.animation-button {
+    margin: var(--spacing-xs) 0;
+    background-color: rgb(60, 60, 60);
+}
+
+.animation-button:hover {
+    background-color: rgb(70, 70, 70);
+}
+
+.animation-status {
+    flex-direction: row;
+    margin-top: var(--spacing-sm);
+    align-items: center;
+}
+
+.status-label {
+    margin-right: var(--spacing-xs);
+}
+
+.current-animation-label {
+    color: rgb(100, 180, 255);
+    -unity-font-style: bold;
+}
+
+.preview-controls {
+    flex-direction: row;
+    justify-content: space-between;
+    padding: var(--spacing-sm);
+    background-color: rgb(45, 45, 45);
+    border-radius: 0 0 var(--border-radius) var(--border-radius);
+}
+
+.control-button {
+    background-color: rgb(50, 50, 50);
+    padding: var(--spacing-xs) var(--spacing-sm);
+}

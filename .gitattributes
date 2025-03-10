@@ -1,0 +1,127 @@
+#https://gist.githubusercontent.com/nemotoo/b8a1c3a0f1225bb9231979f389fd4f3f/raw/dc3e8cab80fc62d1c60db70c761b1ffa636aa796/.gitattributes
+#grafted from https://hextantstudios.com/unity-gitattributes/
+# Macro for Unity YAML-based asset files.
+[attr]unityyaml -text merge=unityyamlmerge diff
+# Macro for all binary files that should use Git LFS.
+#[attr]lfs -text merge=lfs
+# Default to auto-normalized line endings.
+* text=auto
+# Code
+*.cs text diff=csharp
+# Unity Text Assets
+*.meta unityyaml
+*.unity unityyaml
+*.asset unityyaml
+*.prefab unityyaml
+*.mat unityyaml
+#asink: anim files can get large
+#*.anim unityyaml lfs 
+*.controller unityyaml
+*.overrideController unityyaml
+*.physicMaterial unityyaml
+*.physicsMaterial2D unityyaml
+*.playable unityyaml
+*.mask unityyaml
+*.brush unityyaml
+*.flare unityyaml
+*.fontsettings unityyaml
+*.guiskin unityyaml
+*.giparams unityyaml
+*.renderTexture unityyaml
+*.spriteatlas unityyaml
+*.terrainlayer unityyaml
+*.mixer unityyaml
+*.shadervariants unityyaml
+*.preset unityyaml
+*.asmdef -text diff
+# Unity Binary Assets
+#*.cubemap lfs
+#*.unitypackage lfs
+# Note: Unity terrain assets must have "-Terrain" suffix.
+#*-[Tt]errain.asset -unityyaml lfs
+# Note: Unity navmesh assets must have "-NavMesh" suffix.
+#*-[Nn]av[Mm]esh.asset -unityyaml lfs
+## git-lfs ##
+#Image
+*.jpg -text
+*.jpeg -text
+*.png -text
+*.gif -text
+*.psd -text
+*.ai -text
+##Audio
+*.mp3 -text
+*.wav -text
+*.ogg -text
+#Video
+*.mp4 -text
+*.mov -text
+#3D Object
+*.FBX -text
+*.fbx -text
+*.blend -text
+*.obj -text
+#ETC
+*.a -text
+*.exr -text
+*.tga -text
+*.TGA -text
+*.pdf -text
+*.zip -text
+*.dll -text
+*.unitypackage -text
+*.aif -text
+*.ttf -text
+*.TTF -text
+*.rns -text
+*.reason -text
+*.lxo -text
+*.tgz -text
+
+*.aar -text
+*.lighting -text
+
+
+# find . -type f | sed -e 's/.*\.//' | sed -e 's/.*\///' | sort -u
+# asmdef
+# asset
+# bin
+# bmp
+# cs
+# fbx
+# glb
+# gltf
+# jpg
+# mat
+# meta
+# mtl
+# obj
+# png
+# prefab
+# texture2D
+# tga
+# tss
+# txt
+# unity
+# unitypackage
+# xrg
+# zip
+#*.exe -text
+#*.glb -text
+#*.GLB -text
+#*.texture2D -text
+#*.xrg -text
+#*.XRG -text
+#
+#*.hdr -text
+#*.lighting -text
+#*.so -text
+#
+#*.mtl -text
+
+
+
+# Treat FBX and animation files as binary
+*.fbx -text
+*.FBX -text
+*.anim -text

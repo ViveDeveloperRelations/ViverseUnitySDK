@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<engine:UXML
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:engine="UnityEngine.UIElements"
+    xmlns:editor="UnityEditor.UIElements">
+
+    <engine:VisualElement style="flex-grow: 1; flex-direction: row;">
+        <engine:VisualElement name="root-container" class="root-container">
+            <engine:Label text="VRM Animation Controls" class="title-label"/>
+            <engine:VisualElement name="model-status" class="status-container">
+                <engine:Label name="status-label" class="status-label" text="Loading VRM..."/>
+            </engine:VisualElement>
+            <engine:ScrollView name="animation-list" class="animation-list">
+                <!-- Animation buttons will be added here dynamically -->
+            </engine:ScrollView>
+            <engine:VisualElement name="current-animation" class="current-animation-container">
+                <engine:Label text="Current Animation:" class="current-label"/>
+                <engine:Label name="current-animation-name" class="current-animation-name" text="None"/>
+            </engine:VisualElement>
+        </engine:VisualElement>
+    </engine:VisualElement>
+
+</engine:UXML>
