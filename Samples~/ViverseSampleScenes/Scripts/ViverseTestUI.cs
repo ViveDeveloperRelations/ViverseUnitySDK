@@ -37,6 +37,8 @@ public class ViverseTestUIDocument : MonoBehaviour
     private VisualElement _loadingOverlay;
     private Label _loadingText;
 
+    private ViverseAchievementExtension _achievementExtension;
+
     // Avatar-related elements that are conditionally available
     [SerializeField] private RuntimeAnimatorController _sampleAnimationController;
 #if UNI_VRM_INSTALLED && UNI_GLTF_INSTALLED
@@ -83,6 +85,10 @@ public class ViverseTestUIDocument : MonoBehaviour
         _leaderboardResult = root.Q<TextField>("leaderboard-result");
         _loadingOverlay = root.Q<VisualElement>("loading-overlay");
         _loadingText = _loadingOverlay.Q<Label>("loading-text");
+
+        // Initialize Achievement functionality
+        _achievementExtension = gameObject.AddComponent<ViverseAchievementExtension>();
+        _achievementExtension.Initialize(this, _document.rootVisualElement);
 
         // Initially disable logout button
         _logoutButton.SetEnabled(false);
@@ -489,6 +495,10 @@ public class ViverseTestUIDocument : MonoBehaviour
             SetLoading(false);
         }
     }
+    public string GetAppId()
+    {
+	    return _appIdInput?.value ?? string.Empty;
+    }
 
     private async void CheckForCallback()
     {
@@ -569,7 +579,12 @@ public class ViverseTestUIDocument : MonoBehaviour
             ViverseResult<bool> leaderboardInit = await _core.LeaderboardService.Initialize();
             if (!leaderboardInit.IsSuccess)
             {
-                Debug.LogWarning($"Failed to initialize Leaderboard service: {leaderboardInit.ErrorMessage}");
+	            Debug.LogWarning($"Failed to initialize Leaderboard service: {leaderboardInit.ErrorMessage}");
+            }
+            else
+            {
+	            // If leaderboard service init succeeded, fetch achievements
+	            _achievementExtension?.UpdateLoginState(true);
             }
         }
         catch (Exception e)
@@ -587,6 +602,12 @@ public class ViverseTestUIDocument : MonoBehaviour
         _uploadScoreButton.SetEnabled(enabled);
         _getLeaderboardButton.SetEnabled(enabled);
         _logoutButton.SetEnabled(enabled);
+
+        // Update achievement extension login state
+        if (_achievementExtension != null)
+        {
+	        _achievementExtension.UpdateLoginState(enabled);
+        }
     }
 
     private HostConfig GetEnvironmentConfig()
@@ -642,5 +663,11 @@ public class ViverseTestUIDocument : MonoBehaviour
             _vrmExtension.Cleanup();
         }
         #endif
+
+	    // Clean up achievement extension
+	    if (_achievementExtension != null)
+	    {
+		    _achievementExtension.Cleanup();
+	    }
     }
 }

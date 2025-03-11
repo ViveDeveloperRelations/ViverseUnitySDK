@@ -47,7 +47,7 @@ app.use(cors({
         }
     },
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'AccessToken', 'accesstoken', 'Origin', 'Accept'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'AccessToken', 'accesstoken', 'Origin', 'Accept', 'x-htc-op-token'], //'x-htc-op-token' is needed for achievements data
     exposedHeaders: ['AccessToken', 'accesstoken'],
     credentials: true
 }));
@@ -57,7 +57,7 @@ app.options('*', (req, res) => {
     const origin = req.get('Origin');
     res.header('Access-Control-Allow-Origin', origin && allowedOrigins.includes(origin) ? origin : 'https://create.viverse.com');
     res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, AccessToken, accesstoken, Origin, Accept');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, AccessToken, accesstoken, Origin, Accept, x-htc-op-token'); //'x-htc-op-token' is needed for achievements data
     res.header('Access-Control-Expose-Headers', 'AccessToken, accesstoken');
     res.header('Access-Control-Allow-Credentials', 'true');
     res.status(204).end();

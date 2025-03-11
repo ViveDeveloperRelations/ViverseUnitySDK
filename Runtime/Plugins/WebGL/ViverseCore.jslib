@@ -166,6 +166,29 @@
         );
     },
 
+    Achievement_UploadUserAchievement: function(appId, achievementsJson, taskId, callback) {
+      const callbackWrapper = ViverseCoreHelpers.createCallbackWrapper(callback);
+      Module['ViverseAsyncHelper'].wrapAsyncWithPayload(
+        taskId,
+        Module.ViverseCore.Leaderboard.UploadUserAchievement(
+          UTF8ToString(appId),
+          UTF8ToString(achievementsJson)
+        ),
+        callbackWrapper
+      );
+    },
+
+    Achievement_GetUserAchievement: function(appId, taskId, callback) {
+      const callbackWrapper = ViverseCoreHelpers.createCallbackWrapper(callback);
+      Module['ViverseAsyncHelper'].wrapAsyncWithPayload(
+        taskId,
+        Module.ViverseCore.Leaderboard.GetUserAchievement(
+          UTF8ToString(appId)
+        ),
+        callbackWrapper
+      );
+    },
+
     // String management
     FreeString: function(ptr) {
         _free(ptr);

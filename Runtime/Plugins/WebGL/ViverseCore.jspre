@@ -363,8 +363,74 @@
                     payload: null
                 });
             }
+        },
+
+        UploadUserAchievement: async function(appId, achievementsJson) {
+          if (!globalThis.gameDashboardClient) return Promise.resolve(this.ReturnCode.ERROR_MODULE_NOT_LOADED);
+
+          try {
+            // Parse the achievements JSON
+            const achievements = JSON.parse(achievementsJson).achievements;
+            if (!achievements || !Array.isArray(achievements)) {
+              return Promise.resolve({
+                returnCode: this.ReturnCode.ERROR_INVALID_PARAMETER,
+                message: 'Invalid achievements data',
+                payload: null
+              });
+            }
+
+            // Call the game dashboard client
+            const result = await globalThis.gameDashboardClient.uploadUserAchievement(
+              appId,
+              achievements
+            );
+
+            // Return the result
+            return Promise.resolve({
+              returnCode: this.ReturnCode.SUCCESS,
+              message: 'Operation completed successfully',
+              payload: JSON.stringify(result)
+            });
+          } catch (e) {
+            console.error('Upload User Achievement Error:', e);
+            return Promise.resolve({
+              returnCode: this.ReturnCode.ERROR_EXCEPTION,
+              message: 'Exception thrown: ' + e.message,
+              payload: null
+            });
+          }
+        },
+
+        GetUserAchievement: async function(appId) {
+          if (!globalThis.gameDashboardClient) return Promise.resolve(this.ReturnCode.ERROR_MODULE_NOT_LOADED);
+
+          try {
+            // Call the game dashboard client
+            const result = await globalThis.gameDashboardClient.getUserAchievement(appId);
+            if (!result) {
+              return Promise.resolve({
+                returnCode: this.ReturnCode.ERROR_NOT_FOUND,
+                message: 'No achievement data found',
+                payload: null
+              });
+            }
+
+            // Return the result
+            return Promise.resolve({
+              returnCode: this.ReturnCode.SUCCESS,
+              message: 'Operation completed successfully',
+              payload: JSON.stringify(result)
+            });
+          } catch (e) {
+            console.error('Get User Achievement Error:', e);
+            return Promise.resolve({
+              returnCode: this.ReturnCode.ERROR_EXCEPTION,
+              message: 'Exception thrown: ' + e.message,
+              payload: null
+            });
+          }
         }
-    },
+      },
 
     // Configuration Functions
     SetAvatarHost: function(host) {

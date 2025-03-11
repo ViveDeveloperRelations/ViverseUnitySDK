@@ -10,7 +10,9 @@ public class ViverseSDKSmokeTest : MonoBehaviour
 {
 	private ViverseCore _core;
 	private HostConfig _hostConfig;
+
 	[SerializeField] private string ClientID = "3c3e8325-db8f-4a77-a66b-c189c500b0ad";
+
 	//private const string ClientID = "ccc503fb-8547-49d5-9eb0-79af14113554";
 	[SerializeField] private string TestViveportAppidForLeaderboards = "64aa6613-4e6c-4db4-b270-67744e953ce0";
 	private AuthKey _authKey;
@@ -61,6 +63,9 @@ public class ViverseSDKSmokeTest : MonoBehaviour
 
 			await TestLeaderboardFunctionality();
 
+			// Test achievement functionality
+			await TestAchievementFunctionality();
+
 			// Initialize and test Avatar service
 			await InitializeAvatarService();
 
@@ -74,7 +79,8 @@ public class ViverseSDKSmokeTest : MonoBehaviour
 
 	private HostConfig GetEnvironmentConfig()
 	{
-		HostConfigUtil.HostType hostType = new HostConfigUtil().GetHostTypeFromPageURLIfPossible(Application.absoluteURL);
+		HostConfigUtil.HostType hostType =
+			new HostConfigUtil().GetHostTypeFromPageURLIfPossible(Application.absoluteURL);
 		return HostConfigLookup.HostTypeToDefaultHostConfig.TryGetValue(hostType, out var config)
 			? config
 			: HostConfigLookup.HostTypeToDefaultHostConfig[HostConfigUtil.HostType.PROD];
@@ -244,6 +250,7 @@ public class ViverseSDKSmokeTest : MonoBehaviour
 			Debug.LogError($"Failed to upload score: {scoreResult.ErrorMessage}");
 			return false;
 		}
+
 		LeaderboardResult leaderboardResult = scoreResult.Data;
 
 		Debug.Log($"Uploaded score. Total entries: {leaderboardResult.total_count}");
@@ -311,8 +318,11 @@ public class ViverseSDKSmokeTest : MonoBehaviour
 			Debug.LogError($"Failed to get scores: {result.ErrorMessage}");
 			return false;
 		}
+
 		LeaderboardResult leaderboardResult = result.Data;
-		Debug.Log($"Leaderboard results for config: {JsonUtility.ToJson(config)} are {JsonUtility.ToJson(leaderboardResult)}");;
+		Debug.Log(
+			$"Leaderboard results for config: {JsonUtility.ToJson(config)} are {JsonUtility.ToJson(leaderboardResult)}");
+		;
 
 		Debug.Log($"Got scores. Total entries: {leaderboardResult.total_count}");
 		if (leaderboardResult.ranking == null) return true;
@@ -332,7 +342,8 @@ public class ViverseSDKSmokeTest : MonoBehaviour
 
 			if (!avatarInit.IsSuccess)
 			{
-				Debug.LogError($"Avatar service initialization failed: {avatarInit.ErrorMessage} - not continuing with avatar tests {JsonUtility.ToJson(avatarInit)}");
+				Debug.LogError(
+					$"Avatar service initialization failed: {avatarInit.ErrorMessage} - not continuing with avatar tests {JsonUtility.ToJson(avatarInit)}");
 				return;
 			}
 
@@ -360,6 +371,7 @@ public class ViverseSDKSmokeTest : MonoBehaviour
 			Debug.LogError($"Avatar service initialization failed with exception: {e.Message}");
 		}
 	}
+
 	private void TestUtilityFunctions()
 	{
 		// Test Cookie operations
@@ -374,7 +386,8 @@ public class ViverseSDKSmokeTest : MonoBehaviour
 		Debug.Log($"Session storage set result: {sessionResult.IsSuccess} data just in case {sessionResult.Data}");
 
 		ViverseResult<string> sessionCodeResult = ViverseUtils.SessionStorage.Get("sessionKey");
-		Debug.Log($"Session storage get result - Value: {sessionCodeResult.Data} Full json in case: {JsonUtility.ToJson(sessionCodeResult)},");
+		Debug.Log(
+			$"Session storage get result - Value: {sessionCodeResult.Data} Full json in case: {JsonUtility.ToJson(sessionCodeResult)},");
 
 		// Test device detection
 		ViverseResult<string> userAgentStringResult = ViverseUtils.UserAgentHelper.GetUserAgent();
@@ -384,5 +397,292 @@ public class ViverseSDKSmokeTest : MonoBehaviour
 		Debug.Log($"Is HTC VR: {ViverseUtils.UserAgentHelper.DeviceChecks.IsHtcVRDevice()}");
 		Debug.Log($"Supports VR: {ViverseUtils.UserAgentHelper.DeviceChecks.SupportsVR()}");
 		Debug.Log($"Is in XR: {ViverseUtils.UserAgentHelper.DeviceChecks.IsInXRMode()}");
+	}
+
+	private async Task TestAchievementFunctionality()
+	{
+		Debug.Log("Starting achievement tests...");
+
+		// First, get the user's existing achievements
+		if (!await GetUserAchievements())
+		{
+			Debug.LogError("Failed to get user achievements");
+			return;
+		}
+
+		// Test sequential unlocking with verification
+		await TestSequentialAchievementUnlocking();
+
+		// Test batch unlocking
+		string[] batchAchievements = new string[] {
+			"test_achievement3",
+			"test_achievement4",
+			"hidden_achievement2"
+		};
+
+		await UnlockAchievementsBatch(batchAchievements);
+
+		// Test resetting an achievement (if supported)
+		await ResetAchievement("test_achievement1");
+
+		// Finally, get the user's achievements again to verify all changes
+		await GetUserAchievements();
+
+		Debug.Log("Achievement tests completed");
+	}
+
+	private async Task<bool> GetUserAchievements()
+	{
+		Debug.Log("Getting user achievements...");
+
+		try
+		{
+			string testAppId = TestViveportAppidForLeaderboards;
+			ViverseResult<UserAchievementResult> result = await _core.LeaderboardService.GetUserAchievement(testAppId);
+
+			if (!result.IsSuccess)
+			{
+				Debug.LogError($"Failed to get user achievements: {result.ErrorMessage}");
+				return false;
+			}
+
+			Debug.Log($"Got {result.Data.total} achievements");
+
+			if (result.Data.achievements != null && result.Data.achievements.Length > 0)
+			{
+				foreach (var achievement in result.Data.achievements)
+				{
+					Debug.Log($"Achievement: {achievement.display_name} ({achievement.api_name})");
+					Debug.Log($"  Description: {achievement.description}");
+					Debug.Log($"  Unlocked: {achievement.is_achieved} (times: {achievement.achieved_times})");
+				}
+			}
+			else
+			{
+				Debug.Log("No achievements found for this user");
+			}
+
+			return true;
+		}
+		catch (Exception e)
+		{
+			Debug.LogException(e);
+			Debug.LogError($"Error getting achievements: {e.Message}");
+			return false;
+		}
+	}
+
+	private async Task<bool> UnlockAchievement(string achievementId)
+	{
+		Debug.Log($"Attempting to unlock achievement: {achievementId}");
+
+		try
+		{
+			string testAppId = TestViveportAppidForLeaderboards;
+
+			// Create the achievement object to unlock
+			var achievements = new List<Achievement>
+			{
+				new Achievement
+				{
+					api_name = achievementId,
+					unlock = true
+				}
+			};
+
+			// Call the API
+			ViverseResult<AchievementUploadResult> result =
+				await _core.LeaderboardService.UploadUserAchievement(testAppId, achievements);
+
+			if (!result.IsSuccess)
+			{
+				Debug.LogError($"Failed to upload achievement: {result.ErrorMessage}");
+				return false;
+			}
+
+			// Process the result
+			int successCount = result.Data?.success?.total ?? 0;
+			int failureCount = result.Data?.failure?.total ?? 0;
+
+			Debug.Log($"Achievement upload response - Success: {successCount}, Failures: {failureCount}");
+
+			// Log detailed information about successful achievements
+			if (successCount > 0 && result.Data.success.achievements != null)
+			{
+				foreach (var achievement in result.Data.success.achievements)
+				{
+					Debug.Log($"Successfully unlocked: {achievement.api_name} at timestamp: {achievement.time_stamp}");
+				}
+			}
+
+			// Log detailed information about failed achievements
+			if (failureCount > 0 && result.Data.failure.achievements != null)
+			{
+				foreach (var achievement in result.Data.failure.achievements)
+				{
+					Debug.LogWarning(
+						$"Failed to unlock: {achievement.api_name}, Code: {achievement.code}, Message: {achievement.message}");
+				}
+			}
+
+			return successCount > 0;
+		}
+		catch (Exception e)
+		{
+			Debug.LogException(e);
+			Debug.LogError($"Error unlocking achievement: {e.Message}");
+			return false;
+		}
+	}
+	/// <summary>
+	/// Test unlocking achievements one by one with verification in between
+	/// </summary>
+	private async Task TestSequentialAchievementUnlocking()
+	{
+	    Debug.Log("Starting sequential achievement testing...");
+
+	    string[] achievementIds = new string[]
+	    {
+	        "hidden_achievement1",
+	        "test_achievement1",
+	        "test_achievement2"
+	    };
+
+	    Dictionary<string, bool> initialAchievementStates = await GetAchievementStates();
+
+	    foreach (var achievementId in achievementIds)
+	    {
+	        // Try to unlock the achievement
+	        bool wasUnlocked = await UnlockAchievement(achievementId);
+
+	        // Verify the achievement state changed
+	        Dictionary<string, bool> currentStates = await GetAchievementStates();
+
+	        bool initialState = initialAchievementStates.ContainsKey(achievementId) && initialAchievementStates[achievementId];
+	        bool currentState = currentStates.ContainsKey(achievementId) && currentStates[achievementId];
+
+	        if (wasUnlocked && !initialState && currentState)
+	        {
+	            Debug.Log($"✓ Successfully unlocked achievement: {achievementId}");
+	        }
+	        else if (initialState)
+	        {
+	            Debug.Log($"ℹ Achievement was already unlocked: {achievementId}");
+	        }
+	        else
+	        {
+	            Debug.LogWarning($"⚠ Failed to verify unlocking of achievement: {achievementId}");
+	        }
+
+	        // Update the initial states for the next achievement
+	        initialAchievementStates = currentStates;
+	    }
+	}
+
+	/// <summary>
+	/// Gets a dictionary mapping achievement IDs to their unlocked state
+	/// </summary>
+	private async Task<Dictionary<string, bool>> GetAchievementStates()
+	{
+	    var achievementStates = new Dictionary<string, bool>();
+
+	    string testAppId = TestViveportAppidForLeaderboards;
+	    ViverseResult<UserAchievementResult> result = await _core.LeaderboardService.GetUserAchievement(testAppId);
+
+	    if (result.IsSuccess && result.Data.achievements != null)
+	    {
+	        foreach (var achievement in result.Data.achievements)
+	        {
+	            achievementStates[achievement.api_name] = achievement.is_achieved;
+	        }
+	    }
+
+	    return achievementStates;
+	}
+
+	/// <summary>
+	/// Reset a specific achievement (Note: This might not be possible with all achievement systems,
+	/// but it's useful for testing if the API supports it)
+	/// </summary>
+	private async Task<bool> ResetAchievement(string achievementId)
+	{
+	    Debug.Log($"Attempting to reset achievement: {achievementId}");
+
+	    try
+	    {
+	        string testAppId = TestViveportAppidForLeaderboards;
+
+	        // Create the achievement object to reset (unlock = false if supported)
+	        var achievements = new List<Achievement>
+	        {
+	            new Achievement
+	            {
+	                api_name = achievementId,
+	                unlock = false
+	            }
+	        };
+
+	        // Call the API
+	        ViverseResult<AchievementUploadResult> result =
+	            await _core.LeaderboardService.UploadUserAchievement(testAppId, achievements);
+
+	        if (!result.IsSuccess)
+	        {
+	            Debug.LogWarning($"Failed to reset achievement (this may be expected if reset is not supported): {result.ErrorMessage}");
+	            return false;
+	        }
+
+	        int successCount = result.Data?.success?.total ?? 0;
+	        return successCount > 0;
+	    }
+	    catch (Exception e)
+	    {
+	        Debug.LogException(e);
+	        Debug.LogWarning($"Error resetting achievement (this may be expected): {e.Message}");
+	        return false;
+	    }
+	}
+
+	/// <summary>
+	/// Test batch unlocking of achievements
+	/// </summary>
+	private async Task<bool> UnlockAchievementsBatch(string[] achievementIds)
+	{
+	    Debug.Log($"Attempting to unlock {achievementIds.Length} achievements in batch");
+
+	    try
+	    {
+	        string testAppId = TestViveportAppidForLeaderboards;
+
+	        // Create achievement objects for all IDs
+	        var achievements = new List<Achievement>();
+	        foreach (var id in achievementIds)
+	        {
+	            achievements.Add(new Achievement { api_name = id, unlock = true });
+	        }
+
+	        // Call the API
+	        ViverseResult<AchievementUploadResult> result =
+	            await _core.LeaderboardService.UploadUserAchievement(testAppId, achievements);
+
+	        if (!result.IsSuccess)
+	        {
+	            Debug.LogError($"Failed to upload achievements batch: {result.ErrorMessage}");
+	            return false;
+	        }
+
+	        // Process results
+	        int successCount = result.Data?.success?.total ?? 0;
+	        int failureCount = result.Data?.failure?.total ?? 0;
+
+	        Debug.Log($"Batch achievement result: {successCount} succeeded, {failureCount} failed");
+	        return successCount > 0;
+	    }
+	    catch (Exception e)
+	    {
+	        Debug.LogException(e);
+	        Debug.LogError($"Error in batch achievement unlock: {e.Message}");
+	        return false;
+	    }
 	}
 }

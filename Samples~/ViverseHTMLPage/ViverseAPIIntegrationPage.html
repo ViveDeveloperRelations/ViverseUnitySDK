@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VIVERSE SDK Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .card {
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .button-secondary {
+            background-color: #2196F3;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .avatar-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .avatar-card {
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .avatar-card img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .config-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>VIVERSE SDK Demo</h1>
+
+    <div class="card">
+        <h2>Configuration</h2>
+        <div class="config-section">
+            <div class="form-group">
+                <label for="clientId">Client ID:</label>
+                <input type="text" id="clientId" placeholder="Enter your VIVERSE Client ID">
+            </div>
+            <button onclick="saveConfig()" class="button">Save Configuration</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Step 1: Initialize and Login</h2>
+        <button onclick="startLogin()" class="button">Login with VIVERSE</button>
+    </div>
+
+    <div class="card">
+        <h2>Step 2: Login Result</h2>
+        <pre id="loginResult">Not logged in yet</pre>
+    </div>
+
+    <div class="card">
+        <h2>Step 3: Access Token</h2>
+        <pre id="tokenResult">No token yet</pre>
+    </div>
+
+    <div class="card">
+        <h2>Avatar Service</h2>
+        <button onclick="loadProfile()" class="button button-secondary">Load Profile</button>
+        <button onclick="loadAvatars()" class="button button-secondary">Load My Avatars</button>
+        <button onclick="loadPublicAvatars()" class="button button-secondary">Load Public Avatars</button>
+        <div id="avatarResult">
+            <h3>Profile</h3>
+            <pre id="profileResult">No profile loaded</pre>
+
+            <h3>Avatars</h3>
+            <div id="avatarGrid" class="avatar-grid"></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Leaderboard Service</h2>
+        <div class="form-group">
+            <label for="appId">App ID:</label>
+            <input type="text" id="appId" placeholder="Enter your App ID">
+        </div>
+        <div class="form-group">
+            <label for="leaderboardName">Leaderboard Name:</label>
+            <input type="text" id="leaderboardName" placeholder="Enter leaderboard name">
+        </div>
+        <div class="form-group">
+            <label for="score">Score:</label>
+            <input type="number" id="score" placeholder="Enter score">
+        </div>
+        <button onclick="uploadScore()" class="button button-secondary">Upload Score</button>
+        <button onclick="getLeaderboard()" class="button button-secondary">Get Leaderboard</button>
+        <div id="leaderboardResult">
+            <h3>Leaderboard Results</h3>
+            <pre id="leaderboardData">No leaderboard data loaded</pre>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Achievement Service</h2>
+        <div class="form-group">
+            <label for="achievementAppId">App ID:</label>
+            <input type="text" id="achievementAppId" placeholder="Enter your App ID">
+        </div>
+        <div class="form-group">
+            <label for="achievementName">Achievement Name:</label>
+            <input type="text" id="achievementName" placeholder="Enter achievement API name">
+        </div>
+        <div class="form-group">
+            <label for="achievementStatus">Achievement Status:</label>
+            <select id="achievementStatus">
+                <option value="true">Unlocked</option>
+                <option value="false">Locked</option>
+            </select>
+        </div>
+        <button onclick="uploadAchievement()" class="button button-secondary">Upload Achievement</button>
+        <button onclick="getUserAchievements()" class="button button-secondary">Get User Achievements</button>
+        <div id="achievementResult">
+            <h3>Achievement Results</h3>
+            <pre id="achievementData">No achievement data loaded</pre>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        let VIVERSE_CONFIG = {
+            clientId: '',
+            domain: 'account.htcvive.com',
+            cookieDomain: ''
+        };
+
+        const SDK_URL = 'https://www.viverse.com/static-assets/viverse-sdk/1.2.3/viverse-sdk.umd.js';
+
+        // Global clients
+        let avatarClient = null;
+        let gameDashboardClient = null;
+
+        // Load saved configuration on page load
+        window.addEventListener('load', () => {
+            const savedClientId = localStorage.getItem('viverseClientId');
+            if (savedClientId) {
+                document.getElementById('clientId').value = savedClientId;
+                VIVERSE_CONFIG.clientId = savedClientId;
+            }
+        });
+
+        function saveConfig() {
+            const clientId = document.getElementById('clientId').value.trim();
+            if (!clientId) {
+                alert('Please enter a valid Client ID');
+                return;
+            }
+            
+            VIVERSE_CONFIG.clientId = clientId;
+            localStorage.setItem('viverseClientId', clientId);
+            alert('Configuration saved successfully!');
+        }
+
+        function loadViverseSDK() {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = SDK_URL;
+                script.onload = () => {
+                    console.log('Viverse SDK loaded successfully');
+                    resolve();
+                };
+                script.onerror = () => {
+                    console.error('Failed to load Viverse SDK');
+                    reject(new Error('Failed to load Viverse SDK'));
+                };
+                document.body.appendChild(script);
+            });
+        }
+
+        function initializeViverseClient() {
+            if (!VIVERSE_CONFIG.clientId) {
+                alert('Please configure your Client ID first');
+                return false;
+            }
+
+            if (globalThis.viverse) {
+                globalThis.viverseClient = new globalThis.viverse.client(VIVERSE_CONFIG);
+                console.log('Viverse client initialized');
+                return true;
+            } else {
+                console.error('Viverse SDK is not initialized');
+                return false;
+            }
+        }
+
+        async function initializeAvatarClient(token) {
+            if (globalThis.viverse) {
+                avatarClient = new globalThis.viverse.avatar({
+                    baseURL: 'https://sdk-api.viverse.com/',
+                    token: token
+                });
+                console.log('Avatar client initialized');
+                return true;
+            }
+            return false;
+        }
+
+        async function initializeGameDashboardClient(token) {
+            if (globalThis.viverse) {
+                gameDashboardClient = new globalThis.viverse.gameDashboard({
+                    baseURL: 'https://www.viveport.com/',
+                    communityBaseURL: 'https://www.viverse.com/',
+                    token: {
+                        accessToken: token
+                    }
+                });
+                console.log('Game Dashboard client initialized');
+                return true;
+            }
+            return false;
+        }
+
+        async function startLogin() {
+            try {
+                if (!VIVERSE_CONFIG.clientId) {
+                    alert('Please configure your Client ID first');
+                    return;
+                }
+
+                if (!globalThis.viverse) {
+                    await loadViverseSDK();
+                }
+
+                if (!initializeViverseClient()) {
+                    throw new Error('Failed to initialize Viverse client');
+                }
+
+                const protocol = window.location.protocol;
+                const hostname = window.location.hostname;
+                const port = window.location.port ? `:${window.location.port}` : '';
+                const pathname = window.location.pathname;
+                const redirectUrl = `${protocol}//${hostname}${port}${pathname}`;
+
+                await globalThis.viverseClient.loginWithRedirect({
+                    redirectionUrl: redirectUrl
+                });
+            } catch (error) {
+                document.getElementById('loginResult').textContent =
+                    `Error during login process: ${error.message}`;
+            }
+        }
+
+        async function loadProfile() {
+            try {
+                const profile = await avatarClient.getProfile();
+                document.getElementById('profileResult').textContent =
+                    JSON.stringify(profile, null, 2);
+            } catch (error) {
+                document.getElementById('profileResult').textContent =
+                    `Error loading profile: ${error.message}`;
+            }
+        }
+
+        function displayAvatars(avatars, container) {
+            const grid = document.getElementById(container);
+            grid.innerHTML = '';
+
+            avatars.forEach(avatar => {
+                if (!avatar.vrmUrl) {
+                    return;
+                }
+                const card = document.createElement('div');
+                card.className = 'avatar-card';
+
+                const img = document.createElement('img');
+                img.src = avatar.snapshot;
+                img.alt = `Avatar ${avatar.id}`;
+
+                const downloadBtn = document.createElement('button');
+                downloadBtn.className = 'button button-secondary';
+                downloadBtn.textContent = 'Download VRM';
+                downloadBtn.onclick = () => downloadAvatar(avatar.vrmUrl);
+
+                card.appendChild(img);
+                card.appendChild(downloadBtn);
+                grid.appendChild(card);
+            });
+        }
+
+        async function loadAvatars() {
+            try {
+                const avatars = await avatarClient.getAvatarList();
+                displayAvatars(avatars, 'avatarGrid');
+            } catch (error) {
+                document.getElementById('avatarGrid').innerHTML =
+                    `Error loading avatars: ${error.message}`;
+            }
+        }
+
+        async function loadPublicAvatars() {
+            try {
+                const avatars = await avatarClient.getPublicAvatarList();
+                displayAvatars(avatars, 'avatarGrid');
+            } catch (error) {
+                document.getElementById('avatarGrid').innerHTML =
+                    `Error loading public avatars: ${error.message}`;
+            }
+        }
+
+        async function downloadAvatar(url) {
+            try {
+                const arrayBuffer = await avatarClient.getAvatarFileWithSDK(url);
+                const blob = new Blob([arrayBuffer], { type: 'application/octet-stream' });
+                const downloadUrl = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.download = 'avatar.vrm';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(downloadUrl);
+            } catch (error) {
+                alert(`Error downloading avatar: ${error.message}`);
+            }
+        }
+
+        async function uploadScore() {
+            try {
+                const appId = document.getElementById('appId').value;
+                const name = document.getElementById('leaderboardName').value;
+                const value = document.getElementById('score').value;
+
+                const scores = [{
+                    name: name,
+                    value: value.toString()
+                }];
+
+                const result = await gameDashboardClient.uploadLeaderboardScore(appId, scores);
+                document.getElementById('leaderboardData').textContent =
+                    `Score uploaded successfully: ${JSON.stringify(result, null, 2)}`;
+            } catch (error) {
+                document.getElementById('leaderboardData').textContent =
+                    `Error uploading score: ${error.message}`;
+            }
+        }
+
+        async function getLeaderboard() {
+            try {
+                const appId = document.getElementById('appId').value;
+                const name = document.getElementById('leaderboardName').value;
+
+                const config = {
+                    name: name,
+                    range_start: 0,
+                    range_end: 100,
+                    region: 'global',
+                    time_range: 'alltime',
+                    around_user: false
+                };
+
+                const leaderboard = await gameDashboardClient.getLeaderboard(appId, config);
+                document.getElementById('leaderboardData').textContent =
+                    JSON.stringify(leaderboard, null, 2);
+            } catch (error) {
+                document.getElementById('leaderboardData').textContent =
+                    `Error getting leaderboard: ${error.message}`;
+            }
+        }
+        
+        async function uploadAchievement() {
+            try {
+                const appId = document.getElementById('achievementAppId').value;
+                const apiName = document.getElementById('achievementName').value;
+                const unlocked = document.getElementById('achievementStatus').value === 'true';
+                
+                if (!appId || !apiName) {
+                    alert('Please enter both App ID and Achievement Name');
+                    return;
+                }
+
+                const achievements = [{
+                    api_name: apiName,
+                    unlock: unlocked
+                }];
+
+                const result = await gameDashboardClient.uploadUserAchievement(appId, achievements);
+                document.getElementById('achievementData').textContent =
+                    `Achievement uploaded successfully: ${JSON.stringify(result, null, 2)}`;
+            } catch (error) {
+                document.getElementById('achievementData').textContent =
+                    `Error uploading achievement: ${error.message}`;
+            }
+        }
+
+        async function getUserAchievements() {
+            try {
+                const appId = document.getElementById('achievementAppId').value;
+                
+                if (!appId) {
+                    alert('Please enter App ID');
+                    return;
+                }
+
+                const achievements = await gameDashboardClient.getUserAchievement(appId);
+                document.getElementById('achievementData').textContent =
+                    JSON.stringify(achievements, null, 2);
+            } catch (error) {
+                document.getElementById('achievementData').textContent =
+                    `Error getting achievements: ${error.message}`;
+            }
+        }
+
+        async function handleRedirectCallback() {
+            if (window.location.search.includes('code=') &&
+                window.location.search.includes('state=')) {
+
+                if (!globalThis.viverseClient && globalThis.viverse) {
+                    initializeViverseClient();
+                }
+
+                if (globalThis.viverseClient) {
+                    try {
+                        const result = await globalThis.viverseClient.handleRedirectCallback();
+                        document.getElementById('loginResult').textContent =
+                            JSON.stringify(result, null, 2);
+
+                        const tokenResponse = await globalThis.viverseClient.getToken({
+                            detailedResponse: true
+                        });
+                        document.getElementById('tokenResult').textContent =
+                            JSON.stringify(tokenResponse, null, 2);
+
+                        if (tokenResponse.access_token) {
+                            await initializeAvatarClient(tokenResponse.access_token);
+                            await initializeGameDashboardClient(tokenResponse.access_token);
+                        }
+                    } catch (error) {
+                        console.error('Failed to handle redirect callback:', error);
+                        document.getElementById('loginResult').textContent =
+                            `Error handling callback: ${error.message}`;
+                    }
+                }
+            }
+        }
+
+        window.addEventListener('load', async () => {
+            try {
+                if (window.location.search.includes('code=')) {
+                    await loadViverseSDK();
+                    handleRedirectCallback();
+                }
+            } catch (error) {
+                document.getElementById('loginResult').textContent =
+                    `Error during initialization: ${error.message}`;
+            }
+        });
+    </script>
+</body>
+</html>

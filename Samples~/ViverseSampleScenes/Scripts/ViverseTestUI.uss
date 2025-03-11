@@ -212,3 +212,75 @@ Button:disabled {
     background-color: rgb(50, 50, 50);
     padding: var(--spacing-xs) var(--spacing-sm);
 }
+
+
+/* achievement related things */
+.achievement-grid {
+    display: flex;
+    flex-direction: column;
+    margin-top: var(--spacing-md);
+}
+
+.achievement-item {
+    display: flex;
+    flex-direction: row;
+    background-color: rgb(45, 45, 45);
+    border-radius: 4px;
+    padding: var(--spacing-sm);
+    margin-bottom: var(--spacing-sm);
+    align-items: center;
+}
+
+.achievement-item:hover {
+    background-color: rgb(50, 50, 50);
+}
+
+.achievement-icon {
+    width: 32px;
+    height: 32px;
+    margin-right: var(--spacing-sm);
+    background-color: rgb(35, 35, 35);
+    border-radius: 4px;
+}
+
+.achievement-info {
+    flex-grow: 1;
+}
+
+.achievement-title {
+    font-size: 14px;
+    -unity-font-style: bold;
+    margin-bottom: 2px;
+}
+
+.achievement-description {
+    font-size: 12px;
+    color: rgb(180, 180, 180);
+    margin-bottom: 4px;
+}
+
+.achievement-unlocked {
+    color: rgb(50, 200, 50);
+}
+
+.achievement-locked {
+    color: rgb(200, 70, 70);
+}
+
+/* Style for the unlock button */
+.achievement-item Button {
+    background-color: rgb(70, 120, 220);
+    padding: 4px 8px;
+    font-size: 11px;
+    border-radius: 3px;
+    align-self: flex-end;
+    margin-top: var(--spacing-xs);
+}
+
+.achievement-item Button:hover {
+    background-color: rgb(90, 140, 240);
+}
+
+.achievement-item Button:active {
+    background-color: rgb(50, 100, 200);
+}

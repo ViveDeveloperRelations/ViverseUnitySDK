@@ -1,3 +1,6 @@
+# Version 0.0.4 - 11 march 2025
+- Add in achievement api calls, updated smoketest and viversetestui.cs/configurabledriver scene to include them
+
 # Version 0.0.3 - 10 march 2025
 - Visual references for README instructions
 

@@ -1,6 +1,6 @@
 {
     "name": "com.viverse.unityviversewebglapi",
-    "version": "0.0.3",
+    "version": "0.0.4",
     "description": "Interact with the viverse platform through unity webgl export.",
     "displayName": "Viverse API For WebGL export",
     "author": {
@@ -16,6 +16,11 @@
             "displayName": "Viverse Sample Scenes",
             "description": "Sample scenes to use when testing your configuration",
             "path": "Samples~/ViverseSampleScenes"
+        },
+        {
+            "displayName": "Viverse html only page",
+            "description": "Sample javascript only page to test configuration like clientid/appid independently of the unity samples",
+            "path": "Samples~/ViverseHTMLPage"
         }
     ]
 }

@@ -77,4 +77,101 @@ namespace ViverseWebGLAPI
 	    [Preserve] public string name;
 	    [Preserve] public Avatar activeAvatar;
     }
+
+    /// <summary>
+    /// Represents a single achievement with its metadata
+    /// </summary>
+    [Serializable,Preserve]
+    public class Achievement
+    {
+        [Preserve] public string api_name;
+        [Preserve] public bool unlock;
+    }
+
+    /// <summary>
+    /// Wrapper class for serializing a list of achievements
+    /// </summary>
+    [Serializable,Preserve]
+    public class AchievementsWrapper
+    {
+        [Preserve] public Achievement[] achievements;
+    }
+
+    /// <summary>
+    /// Detailed information about a user achievement
+    /// </summary>
+    [Serializable,Preserve]
+    public class UserAchievementInfo
+    {
+        [Preserve] public string achievement_id;
+        [Preserve] public string api_name;
+        [Preserve] public string display_name;
+        [Preserve] public string description;
+        [Preserve] public bool is_achieved;
+        [Preserve] public string achieved_icon;
+        [Preserve] public string unachieved_icon;
+        [Preserve] public int achieved_times;
+    }
+
+    /// <summary>
+    /// Result of getting user achievements
+    /// </summary>
+    [Serializable,Preserve]
+    public class UserAchievementResult
+    {
+        [Preserve] public UserAchievementInfo[] achievements;
+        [Preserve] public int total;
+    }
+
+    /// <summary>
+    /// Information about a successful achievement upload
+    /// </summary>
+    [Serializable,Preserve]
+    public class SuccessAchievement
+    {
+        [Preserve] public string api_name;
+        [Preserve] public long time_stamp;
+    }
+
+    /// <summary>
+    /// Information about a failed achievement upload
+    /// </summary>
+    [Serializable]
+    public class FailureAchievement
+    {
+        [Preserve] public string api_name;
+        [Preserve] public int code;
+        [Preserve] public string message;
+    }
+
+    /// <summary>
+    /// Success information for achievement uploads
+    /// </summary>
+    [Serializable,Preserve]
+    public class SuccessInfo
+    {
+        [Preserve] public int total;
+        [Preserve] public SuccessAchievement[] achievements;
+    }
+
+    /// <summary>
+    /// Failure information for achievement uploads
+    /// </summary>
+    [Serializable,Preserve]
+    public class FailureInfo
+    {
+        [Preserve] public int total;
+        [Preserve] public FailureAchievement[] achievements;
+    }
+
+    /// <summary>
+    /// Complete result of an achievement upload operation
+    /// </summary>
+    [Serializable,Preserve]
+    public class AchievementUploadResult
+    {
+        [Preserve] public SuccessInfo success;
+        [Preserve] public FailureInfo failure;
+    }
 }
+

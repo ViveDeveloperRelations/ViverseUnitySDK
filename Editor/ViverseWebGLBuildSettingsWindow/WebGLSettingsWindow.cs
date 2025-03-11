@@ -568,7 +568,7 @@ public class WebGLSettingsWindow : EditorWindow
 	        }
 	    }
 	}
-    
+
 	// Check if the URP shader variant collection is in preloaded assets
 	private bool CheckURPShaderVariantPreloaded()
 	{
@@ -766,13 +766,13 @@ public class WebGLSettingsWindow : EditorWindow
         }
 
         PlayerSettings.WebGL.decompressionFallback = !evt.newValue;
-		
+
 		// Also set the compression format to None when decompression fallback is disabled
 		if (evt.newValue) // If toggle is checked (disable decompression fallback)
 		{
 			PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Disabled;
 		}
-		
+
         AssetDatabase.SaveAssets();
     }
 
@@ -786,7 +786,7 @@ public class WebGLSettingsWindow : EditorWindow
         }
 
         PlayerSettings.WebGL.decompressionFallback = !_decompressionFallbackToggle.value;
-		
+
 		// Also set the compression format to None when decompression fallback is disabled
 		if (_decompressionFallbackToggle.value) // If toggle is checked (disable decompression fallback)
 		{
