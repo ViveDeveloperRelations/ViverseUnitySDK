@@ -1,11 +1,15 @@
 ﻿#if UNI_VRM_INSTALLED && UNI_GLTF_INSTALLED
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Serialization;
 using UnityEngine.UIElements;
 using Object = UnityEngine.Object;
+#if URP_INSTALLED
+using UnityEngine.Rendering.Universal;
+#endif
 
 [Serializable]
 public class ViverseAvatarTestUI
@@ -39,6 +43,7 @@ public class ViverseAvatarTestUI
 		if (string.IsNullOrEmpty(vrmUrl)) return(false, "Invalid VRM URL");
 		_currentVrmUrl = vrmUrl;
 		bool success = await _vrmPreviewController.LoadVRM(vrmUrl);
+		_vrmPreviewController.ResetView();
 		if (!success) return (false, "Failed to load VRM model");
 		// No need to call SetupAnimationControls() here as it will be handled
 		// by the OnTriggersDiscovered event via SetupAnimationButtons()
@@ -49,6 +54,17 @@ public class ViverseAvatarTestUI
 	{
 		if (_vrmPreviewController == null) return;
 		_vrmPreviewController.PlayAnimation(animationName);
+		IEnumerator ResetViewAfterAFewFramesCoroutine(int framesToWait) //the animation can move the avatar quite a bit, make sure that it is handled as expected
+		{
+			for (int i = 0; i < framesToWait; i++)
+			{
+				if(_vrmPreviewController != null) _vrmPreviewController.ResetView();
+				yield return null;
+			}
+			if(_vrmPreviewController != null) _vrmPreviewController.ResetView();
+		}
+		const int framesToWait = 40;
+		_vrmPreviewController.StartCoroutine(ResetViewAfterAFewFramesCoroutine(framesToWait));
 		_currentAnimationLabel.text = animationName;
 	}
 	public async Task<(bool, string)> PreviewVRM(string vrmUrl)
@@ -136,6 +152,13 @@ public class ViverseAvatarTestUI
 	    previewCamera.transform.position = new Vector3(0, 1, -3);
 	    previewCamera.transform.LookAt(Vector3.zero);
 	    previewCamera.targetTexture = renderTexture;
+#if URP_INSTALLED
+		UniversalAdditionalCameraData camData = previewCamera.GetUniversalAdditionalCameraData();
+		if (camData != null)
+        {
+            camData.renderPostProcessing = true; // Enable Post Processing
+        }
+#endif
 
 	    // Add the render texture to the UI
 	    Image previewImage = new Image

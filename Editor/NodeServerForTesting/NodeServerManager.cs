@@ -19,7 +19,7 @@ public class NodeServerManager
 
     private static Process nodeProcess = null; // Store the process reference
 
-    [MenuItem("Tools/Copy Server Script")]
+    //[MenuItem("Tools/Copy Server Script")]
     public static void CopyServerScript()
     {
         string scriptSource = FindScriptPath(ServerScriptName);
@@ -39,7 +39,7 @@ public class NodeServerManager
         File.Copy(scriptSource, destination, true);
         Debug.Log($"Copied {ServerScriptName} to {ToolsPath}");
     }
-    [MenuItem("Tools/Install Node Modules")]
+    //[MenuItem("Tools/Install Node Modules")]
     public static void InstallNodeModules()
     {
 	    if (!Directory.Exists(LibsPath))
@@ -71,7 +71,7 @@ public class NodeServerManager
 
     public const string ServerStateKey = "NodeServerRunning";
     private static NodeProcessSafeHandle nodeProcessHandle;
-    [MenuItem("Tools/Start HTTPS Server")]
+    //[MenuItem("Tools/Start HTTPS Server")]
     public static void StartHttpsServer()
     {
 	    StopOrphanedProcesses(); // Ensure no old processes are running
@@ -152,7 +152,7 @@ public class NodeServerManager
 	    }
     }
 
-    [MenuItem("Tools/Stop HTTPS Server")]
+    //[MenuItem("Tools/Stop HTTPS Server")]
     public static void StopHttpsServer()
     {
 	    StopHttpsServer(true);

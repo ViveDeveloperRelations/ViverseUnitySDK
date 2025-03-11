@@ -50,7 +50,7 @@ public static class UniVRMEssentialShadersForPlatformHelper
     /// <summary>
     /// Checks if the project is using Universal Render Pipeline.
     /// </summary>
-    private static bool IsUsingUniversalRenderPipeline()
+    public static bool IsUsingUniversalRenderPipeline()
     {
         // Check if the current render pipeline asset exists and is URP
         var currentRenderPipelineAsset = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline;

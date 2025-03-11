@@ -183,20 +183,29 @@ public class ViverseVRMExtension : MonoBehaviour
         try
         {
             List<Avatar> allAvatars = new List<Avatar>();
-
-            // Load personal avatars
-            ViverseResult<AvatarListWrapper> personalResult = await mainUI.GetViverseCore().AvatarService.GetAvatarList();
-            if (personalResult.IsSuccess && personalResult.Data.avatars != null)
+#if UNITY_EDITOR
+            allAvatars.Add(new Avatar()
             {
-                allAvatars.AddRange(personalResult.Data.avatars);
-            }
+	            //vrmUrl = "https://avatar.viverse.com/api/meetingareaselector/v2/newgenavatar/avatars/be13b1bc76b03d90dae55902820c31258be58ab6fae355906525f5ca70b1d4b1f3/files?filetype=model&lod=original",
+	            vrmUrl = "https://avatar.viverse.com/api/meetingareaselector/v2/newgenavatar/avatars/70b26fad0dcd7311562fb697b0c1c8938cf41dd3edfe9c098dc7c45d5525ca0cd414/files?filetype=model&lod=basic",
+            });
+#endif
+	        if (!Application.isEditor)
+	        {
+		        // Load personal avatars
+		        ViverseResult<AvatarListWrapper> personalResult = await mainUI.GetViverseCore().AvatarService.GetAvatarList();
+		        if (personalResult.IsSuccess && personalResult.Data.avatars != null)
+		        {
+			        allAvatars.AddRange(personalResult.Data.avatars);
+		        }
 
-            // Load public avatars
-            ViverseResult<AvatarListWrapper> publicResult = await mainUI.GetViverseCore().AvatarService.GetPublicAvatarList();
-            if (publicResult.IsSuccess && publicResult.Data.avatars != null)
-            {
-                allAvatars.AddRange(publicResult.Data.avatars);
-            }
+		        // Load public avatars
+		        ViverseResult<AvatarListWrapper> publicResult = await mainUI.GetViverseCore().AvatarService.GetPublicAvatarList();
+		        if (publicResult.IsSuccess && publicResult.Data.avatars != null)
+		        {
+			        allAvatars.AddRange(publicResult.Data.avatars);
+		        }
+	        }
 
             if (allAvatars.Count == 0)
             {
@@ -213,6 +222,7 @@ public class ViverseVRMExtension : MonoBehaviour
         }
         catch (Exception e)
         {
+	        Debug.LogException(e);
             mainUI.ShowError($"Error starting avatar cycling: {e.Message}");
         }
         finally

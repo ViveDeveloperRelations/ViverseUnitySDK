@@ -1,5 +1,6 @@
 ﻿#if UNI_VRM_INSTALLED && UNI_GLTF_INSTALLED
 using System;
+using UniGLTF;
 using UnityEngine;
 using UnityEngine.Animations;
 using UnityEngine.Playables;
@@ -13,7 +14,7 @@ public class VRMDownloaderAndAnimator : MonoBehaviour
 	public AnimationClip animationClip;
 	public string vrmUrl = "https://avatar.viverse.com/api/meetingareaselector/v2/newgenavatar/avatars/be13b1bc76b03d90dae55902820c31258be58ab6fae355906525f5ca70b1d4b1f3/files?filetype=model&lod=original";
 
-	private GameObject loadedModel;
+	private RuntimeGltfInstance loadedModel;
 
 	async void Start()
 	{
@@ -22,7 +23,7 @@ public class VRMDownloaderAndAnimator : MonoBehaviour
 			Debug.LogError("No animation clip assigned!");
 			return;
 		}
-
+		CleanupModelIfItExists();
 		try
 		{
 			// Use the shared utility to download and load the VRM
@@ -52,7 +53,7 @@ public class VRMDownloaderAndAnimator : MonoBehaviour
 		}
 	}
 
-	private void OnDestroy()
+	void CleanupModelIfItExists()
 	{
 		if (playableGraph.IsValid())
 		{
@@ -60,8 +61,12 @@ public class VRMDownloaderAndAnimator : MonoBehaviour
 		}
 		if(loadedModel != null)
 		{
-			Destroy(loadedModel);
+			Destroy(loadedModel.Root);
 		}
+	}
+	private void OnDestroy()
+	{
+		CleanupModelIfItExists();
 	}
 }
 #endif //#if UNI_VRM_INSTALLED && UNI_GLTF_INSTALLED

@@ -1,8 +1,10 @@
-﻿using UnityEditor;
+﻿using System.Collections;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 using System.Collections.Generic;
 using System.Linq;
+using ViverseWebGLAPI;
 
 /// <summary>
 /// Editor window for configuring WebGL build settings and server setup
@@ -108,14 +110,15 @@ public class WebGLSettingsWindow : EditorWindow
         // Get references to UI elements
         _container = rootVisualElement.Q<VisualElement>("container");
         _decompressionFallbackToggle = rootVisualElement.Q<Toggle>("decompressionFallbackToggle");
+		_decompressionFallbackToggle.tooltip = "Disable decompression fallback and set compression format to None to ensure smooth running in some browsers (recommended)";
         _currentPlatformLabel = rootVisualElement.Q<Label>("currentPlatformLabel");
         Button setAllButton = rootVisualElement.Q<Button>("setAllButton");
 
-        // Initialize shader-specific UI elements
-        InitializeShaderUI();
-
         // Initialize VRM Package UI elements
         InitializeVRMPackageUI();
+
+        // Initialize shader-specific UI elements
+        InitializeShaderUI();
 
         // Initialize server setup UI elements
         InitializeServerSetupUI();
@@ -250,6 +253,7 @@ public class WebGLSettingsWindow : EditorWindow
         _container.Add(_vrmPackageContainer);
     }
 
+    private IEnumerator m_CurrentInstallCoroutine = null;
     private void InstallVRMPackages()
     {
         if (_isInstallingPackages) return;
@@ -258,41 +262,62 @@ public class WebGLSettingsWindow : EditorWindow
         _installVRMPackagesButton.SetEnabled(false);
         _installVRMPackagesButton.text = "Installing...";
 
+        IEnumerator InstallCoroutine()
+        {
+	        var installVRMPackagesReturn = new VRMPackageInstaller.VRMPackageInstallCoroutineReturn();
+			yield return VRMPackageInstaller.InstallVRMPackagesCoroutine(installVRMPackagesReturn);
+			_isInstallingPackages = false;
+			m_CurrentInstallCoroutine = null;
+			_installVRMPackagesButton.SetEnabled(true);
+			_installVRMPackagesButton.text = "Install VRM Packages";
+			bool success = installVRMPackagesReturn.success;
+			if (success)
+			{
+				EditorUtility.DisplayDialog("Installation Complete",
+					"UniVRM packages installed successfully. ", "OK");
+
+				// Set flag to refresh shader and package status after packages are installed
+				_pendingUiRefresh = true;
+				_refreshShaderStatusAfterInstall = true;
+				_refreshPackageStatusAfterInstall = true;
+
+				// Force a domain reload to apply the new packages
+				AssetDatabase.Refresh();
+			}
+			else
+			{
+				EditorUtility.DisplayDialog("Installation Failed",
+					$"Failed to install UniVRM packages {installVRMPackagesReturn.message}", "OK");
+				UpdateVRMPackageStatus();
+			}
+        }
+
+        if (m_CurrentInstallCoroutine != null)
+        {
+	        Debug.LogWarning("Install packages already running, ignoring extra request");
+	        return;
+        }
+        m_CurrentInstallCoroutine = InstallCoroutine();
         // Use helper class to install packages
-        VRMPackageInstaller.InstallVRMPackages((success, message) => {
-            _isInstallingPackages = false;
-            _installVRMPackagesButton.SetEnabled(true);
-            _installVRMPackagesButton.text = "Install VRM Packages";
-
-            if (success)
-            {
-                EditorUtility.DisplayDialog("Installation Complete",
-                    "UniVRM packages installed successfully. ", "OK");
-
-                // Set flag to refresh shader and package status after packages are installed
-                _pendingUiRefresh = true;
-                _refreshShaderStatusAfterInstall = true;
-                _refreshPackageStatusAfterInstall = true;
-
-                // Force a domain reload to apply the new packages
-                AssetDatabase.Refresh();
-            }
-            else
-            {
-                EditorUtility.DisplayDialog("Installation Failed",
-                    $"Failed to install UniVRM packages: {message}", "OK");
-                UpdateVRMPackageStatus();
-            }
-        });
+        EditorCoroutineUtility.StartCoroutine(m_CurrentInstallCoroutine);
     }
 
+    private EditorCoroutine GetPackageStatusCoroutine;
     private void UpdateVRMPackageStatus()
     {
-        // Use the async version to avoid UI blocking
-        VRMPackageInstaller.GetPackageStatusAsync(packageStatus => {
-            bool allInstalled = packageStatus.Values.All(installed => installed);
+	    if (GetPackageStatusCoroutine != null)
+	    {
+		    EditorCoroutineUtility.StopCoroutine(GetPackageStatusCoroutine);
+		    GetPackageStatusCoroutine = null;
+	    }
 
-            if (allInstalled)
+	    IEnumerator UpdateVRMPackagesList()
+	    {
+		    var statusResult = new VRMPackageInstaller.PackageStatusCoroutineReturn();
+		    yield return VRMPackageInstaller.GetPackageStatusCoroutine(statusResult);
+			Dictionary<string,bool> packageStatus = statusResult.packageStatus;
+			bool allInstalled = packageStatus.Values.All(installed => installed);
+			if (allInstalled)
             {
                 _vrmPackageStatusLabel.text = "✓ All VRM packages are installed";
                 _vrmPackageStatusLabel.style.color = new Color(0, 0.7f, 0);
@@ -350,7 +375,8 @@ public class WebGLSettingsWindow : EditorWindow
 
             // When package status changes, we should update shader status too
             UpdateShaderStatus();
-        });
+	    }
+	    GetPackageStatusCoroutine = EditorCoroutineUtility.StartCoroutine(UpdateVRMPackagesList());
     }
 
     private void InitializeServerSetupUI()
@@ -462,42 +488,117 @@ public class WebGLSettingsWindow : EditorWindow
     }
 
     private void UpdateShaderStatus()
-    {
-        // Get missing shaders using the WebGLShaderManager
-        // This works with or without VRM packages installed
-        List<string> missingShaders = _shaderManager.GetMissingShaders();
-        bool hasAllShaders = missingShaders.Count == 0;
+	{
+	    // Get missing shaders count using the WebGLShaderManager
+	    int numMissingShaders = _shaderManager.GetMissingShadersCount();
 
-        // Check if VRM packages are installed using preprocessor directives
-        #if UNI_VRM_INSTALLED && UNI_GLTF_INSTALLED
-        bool vrmPackagesInstalled = true;
-        #else
-        bool vrmPackagesInstalled = false;
-        #endif
+	    // Check if URP shader variants are missing
+	    bool missingURPVariants = _shaderManager.IsMissingPreloadedVariants();
 
-        if (hasAllShaders)
-        {
-            _shaderStatusLabel.text = "✓ All required shaders are included";
-            _shaderStatusLabel.style.color = new Color(0, 0.7f, 0);
-            _addShadersButton.style.display = DisplayStyle.None;
-        }
-        else
-        {
-            _shaderStatusLabel.text = $"⚠ Missing {missingShaders.Count} required shader(s)";
-            _shaderStatusLabel.style.color = new Color(0.7f, 0.5f, 0);
-            _addShadersButton.style.display = DisplayStyle.Flex;
+	    // Determine if all shader resources are included
+	    bool hasAllShaders = numMissingShaders == 0 && !missingURPVariants;
 
-            // Log missing shaders for debug purposes
-            //Debug.Log($"Missing shaders: {string.Join(", ", missingShaders)}");
-        }
+	    // Check if VRM packages are installed using preprocessor directives
+	    #if UNI_VRM_INSTALLED && UNI_GLTF_INSTALLED
+	    bool vrmPackagesInstalled = true;
+	    bool isURP = UniVRMEssentialShadersForPlatformHelper.IsUsingUniversalRenderPipeline();
+	    #else
+	    bool vrmPackagesInstalled = false;
+	    bool isURP = false;
+	    #endif
 
-        // Hide/show the information message based on VRM installation status
-        var infoMessage = _shaderContainer.Q<Label>(className: "info-message");
-        if (infoMessage != null)
-        {
-            infoMessage.style.display = vrmPackagesInstalled ? DisplayStyle.None : DisplayStyle.Flex;
-        }
-    }
+	    if (hasAllShaders)
+	    {
+	        _shaderStatusLabel.text = "✓ All required shaders are included";
+	        _shaderStatusLabel.style.color = new Color(0, 0.7f, 0);
+	        _addShadersButton.style.display = DisplayStyle.None;
+	    }
+	    else
+	    {
+	        int issueCount = numMissingShaders;
+	        if (missingURPVariants) issueCount++; // Count missing URP variant collection as an issue
+
+	        _shaderStatusLabel.text = $"⚠ Missing {issueCount} required shader resource(s)";
+	        _shaderStatusLabel.style.color = new Color(0.7f, 0.5f, 0);
+	        _addShadersButton.style.display = DisplayStyle.Flex;
+	    }
+
+	    // Hide/show the information message based on VRM installation status
+	    var infoMessage = _shaderContainer.Q<Label>(className: "info-message");
+	    if (infoMessage != null)
+	    {
+	        infoMessage.style.display = vrmPackagesInstalled ? DisplayStyle.None : DisplayStyle.Flex;
+	    }
+
+	    // Add URP variant info if using URP
+	    if (isURP)
+	    {
+	        // Check if the URP info message already exists
+	        var urpInfoMessage = _shaderContainer.Q<Label>("urp-variant-info");
+	        bool hasURPShaderVariants = !missingURPVariants;
+
+	        if (urpInfoMessage == null)
+	        {
+	            // Create URP variant info message
+	            urpInfoMessage = new Label(hasURPShaderVariants ?
+	                "✓ URP Shader Variant Collection is included" :
+	                "⚠ URP Shader Variant Collection needs to be added to preloaded assets");
+	            urpInfoMessage.name = "urp-variant-info";
+	            urpInfoMessage.AddToClassList("status-label");
+	            urpInfoMessage.style.color = hasURPShaderVariants ? new Color(0, 0.7f, 0) : new Color(0.7f, 0.5f, 0);
+	            urpInfoMessage.style.marginTop = 8;
+	            _shaderContainer.Add(urpInfoMessage);
+	        }
+	        else
+	        {
+	            // Update existing URP variant info message
+	            urpInfoMessage.text = hasURPShaderVariants ?
+	                "✓ URP Shader Variant Collection is included" :
+	                "⚠ URP Shader Variant Collection needs to be added to preloaded assets";
+	            urpInfoMessage.style.color = hasURPShaderVariants ? new Color(0, 0.7f, 0) : new Color(0.7f, 0.5f, 0);
+	        }
+	    }
+	    else
+	    {
+	        // Remove URP variant info if not using URP
+	        var urpInfoMessage = _shaderContainer.Q<Label>("urp-variant-info");
+	        if (urpInfoMessage != null)
+	        {
+	            _shaderContainer.Remove(urpInfoMessage);
+	        }
+	    }
+	}
+    
+	// Check if the URP shader variant collection is in preloaded assets
+	private bool CheckURPShaderVariantPreloaded()
+	{
+		// GUID of the URP shader variant collection to check
+		const string URP_SHADER_VARIANT_GUID = "179d48094d5ea464da56bf6fe34974ae";
+
+		// Get preloaded assets
+		var preloadedAssets = PlayerSettings.GetPreloadedAssets();
+		if (preloadedAssets == null)
+			return false;
+
+		// Get the asset path from GUID
+		string assetPath = AssetDatabase.GUIDToAssetPath(URP_SHADER_VARIANT_GUID);
+		if (string.IsNullOrEmpty(assetPath))
+			return false; // Asset not found in project
+
+		// Load the asset from path
+		var shaderVariantCollection = AssetDatabase.LoadAssetAtPath<ShaderVariantCollection>(assetPath);
+		if (shaderVariantCollection == null)
+			return false; // Asset couldn't be loaded
+
+		// Check if this collection is in preloaded assets
+		foreach (var asset in preloadedAssets)
+		{
+			if (asset == shaderVariantCollection)
+				return true;
+		}
+
+		return false;
+	}
 
     private void UpdateServerSetupUI()
     {
@@ -575,7 +676,7 @@ public class WebGLSettingsWindow : EditorWindow
         bool isWebGLPlatform = EditorUserBuildSettings.activeBuildTarget == BuildTarget.WebGL;
 
         _currentPlatformLabel.text = $"Current Platform: {EditorUserBuildSettings.activeBuildTarget}";
-        _decompressionFallbackToggle.SetValueWithoutNotify(PlayerSettings.WebGL.decompressionFallback);
+        _decompressionFallbackToggle.SetValueWithoutNotify(!PlayerSettings.WebGL.decompressionFallback);
         _container.style.opacity = isWebGLPlatform ? 1f : 0.5f;
         _decompressionFallbackToggle.SetEnabled(isWebGLPlatform);
 
@@ -664,7 +765,14 @@ public class WebGLSettingsWindow : EditorWindow
             return;
         }
 
-        PlayerSettings.WebGL.decompressionFallback = evt.newValue;
+        PlayerSettings.WebGL.decompressionFallback = !evt.newValue;
+		
+		// Also set the compression format to None when decompression fallback is disabled
+		if (evt.newValue) // If toggle is checked (disable decompression fallback)
+		{
+			PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Disabled;
+		}
+		
         AssetDatabase.SaveAssets();
     }
 
@@ -677,7 +785,13 @@ public class WebGLSettingsWindow : EditorWindow
             return;
         }
 
-        PlayerSettings.WebGL.decompressionFallback = _decompressionFallbackToggle.value;
+        PlayerSettings.WebGL.decompressionFallback = !_decompressionFallbackToggle.value;
+		
+		// Also set the compression format to None when decompression fallback is disabled
+		if (_decompressionFallbackToggle.value) // If toggle is checked (disable decompression fallback)
+		{
+			PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Disabled;
+		}
 
         if (_shaderManager != null)
         {

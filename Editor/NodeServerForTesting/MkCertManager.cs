@@ -92,7 +92,7 @@ public class MkCertManager
     /// <summary>
     /// Runs mkcert to generate SSL certificates.
     /// </summary>
-    [MenuItem("Tools/Generate SSL Certificate")]
+    //[MenuItem("Tools/Generate SSL Certificate")]
     public static void GenerateSSLCertificate()
     {
 	    GenerateSSLCertificate("create.viverse.com");

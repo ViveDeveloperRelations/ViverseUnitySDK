@@ -89,7 +89,9 @@
           }
 
           try {
+            console.log("Logging out with redirect url:", redirectUrl);
             await globalThis.viverseClient.logout({ redirectionUrl: redirectUrl });
+            console.log("Logging out with redirect url finished:", redirectUrl);
 
             // Clear all tokens and state
             Module.ViverseCore._token = null;
@@ -104,6 +106,8 @@
             }
             globalThis.viverseClient = null;
 
+            //temporarily allow these cookies, assume user has accepted eula
+/*
             // Clear any stored cookies/storage
             function deleteCookie(name) {
               try {
@@ -120,7 +124,8 @@
 
             deleteCookie("_htc_access_token_production");
             deleteCookie("_htc_access_token_stage");
-
+            deleteCookie("_htc_access_token_dev");
+            */
             return Promise.resolve(this.ReturnCode.SUCCESS);
           } catch (e) {
             console.error('Logout Error:', e);

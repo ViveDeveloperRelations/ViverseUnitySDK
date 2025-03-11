@@ -3,14 +3,16 @@
 using System;
 using UnityEngine;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
+using UniGLTF;
 
 public class VRMPreviewController : MonoBehaviour
 {
     [HideInInspector] public Camera previewCamera;
     [HideInInspector] public Transform avatarRoot;
 
-    private GameObject currentModel;
+    private RuntimeGltfInstance currentModel;
     [SerializeField] private Animator animator;
     [HideInInspector] public RuntimeAnimatorController animatorController;
     private readonly List<string> availableTriggers = new List<string>();
@@ -18,17 +20,34 @@ public class VRMPreviewController : MonoBehaviour
     // Event to notify when animation triggers are discovered
     public event Action<List<string>> OnTriggersDiscovered;
 
-    private bool autoRotate = true;
+    public bool autoRotate = true;
     private float rotationSpeed = 30f;
+
+    public void OnDestroy()
+    {
+	    CleanupModelIfItExists();
+    }
+
+    void CleanupModelIfItExists()
+    {
+	    // Clean up previous model if any
+	    if (currentModel == null) return;
+	    Destroy(currentModel.Root);
+	    currentModel = null;
+	    availableTriggers?.Clear();
+    }
+
+    [ContextMenu("Load test vrm")]
+    public void LoadTestVRM()
+    {
+	    Task.Run(async () =>
+	    {
+		    await LoadVRM("https://avatar.viverse.com/api/meetingareaselector/v2/newgenavatar/avatars/be13b1bc76b03d90dae55902820c31258be58ab6fae355906525f5ca70b1d4b1f3/files?filetype=model&lod=original");
+	    });
+    }
     public async Task<bool> LoadVRM(string vrmUrl)
     {
-        // Clean up previous model if any
-        if (currentModel != null)
-        {
-            Destroy(currentModel);
-            currentModel = null;
-            availableTriggers.Clear();
-        }
+	    CleanupModelIfItExists();
 
         try
         {
@@ -37,7 +56,7 @@ public class VRMPreviewController : MonoBehaviour
 
             if (currentModel == null) return false;
             // Position and scale the model
-            currentModel.transform.SetParent(avatarRoot);
+            currentModel.transform.SetParent(null);
             currentModel.transform.localPosition = Vector3.zero;
             currentModel.transform.localRotation = Quaternion.identity;
 
@@ -45,7 +64,7 @@ public class VRMPreviewController : MonoBehaviour
             animator = currentModel.GetComponent<Animator>();
             if (animator == null)
             {
-	            animator = currentModel.AddComponent<Animator>();
+	            animator = currentModel.Root.AddComponent<Animator>();
             }
             // Apply the animator controller if available
             if (animatorController != null)
@@ -60,7 +79,7 @@ public class VRMPreviewController : MonoBehaviour
             // Create a generic avatar if needed
             if (animator.avatar == null)
             {
-	            Avatar avatar = AvatarBuilder.BuildGenericAvatar(currentModel, "");
+	            Avatar avatar = AvatarBuilder.BuildGenericAvatar(currentModel.Root, "");
 	            if (avatar != null)
 	            {
 		            avatar.name = "VRM Avatar";
@@ -129,26 +148,56 @@ public class VRMPreviewController : MonoBehaviour
     }
 
     private void SetupCamera()
-    {
+	{
 	    if (currentModel == null || previewCamera == null) return;
+
 	    // Find the avatar's height
-	    Renderer[] renderers = currentModel.GetComponentsInChildren<Renderer>();
-	    if (renderers.Length <= 0) return;
-	    Bounds bounds = new Bounds(currentModel.transform.position, Vector3.zero);
-	    foreach (Renderer subRenderer in renderers)
+	    List<Renderer> renderers = new(currentModel.Renderers);
+	    if (renderers.Count <= 0) return;
+
+	    // Calculate proper bounds
+	    Bounds bounds = renderers[0].bounds; // Use first renderer as initial bounds
+	    for (int i = 1; i < renderers.Count; i++)
 	    {
-		    bounds.Encapsulate(subRenderer.bounds);
+	        bounds.Encapsulate(renderers[i].bounds);
 	    }
 
-	    // Position camera to view the full avatar
-	    float distance = bounds.size.magnitude * 1.5f;
+	    //Debug.Log($"Avatar bounds: Center={bounds.center}, Size={bounds.size}, " +
+	    //         $"Extents={bounds.extents}, Min={bounds.min}, Max={bounds.max}");
 
-	    // Adjust camera position to make avatar appear lower on screen
-	    previewCamera.transform.position = new Vector3(0, bounds.center.y + bounds.size.y * 0.3f, -distance);
+	    // Compute distance based on height with a multiplier
+	    float heightBasedDistance = bounds.size.y * 3.0f;
 
-	    // Look at a point slightly below the center to keep avatar lower in frame
-	    previewCamera.transform.LookAt(new Vector3(0, bounds.center.y - bounds.size.y * 0.3f, 0));
-    }
+	    // Position camera at appropriate height and distance
+	    Vector3 cameraPos = new Vector3(
+	        0,                                      // Center horizontally
+	        bounds.center.y + (bounds.size.y * 0.2f), // Position slightly above center (20% of height)
+	        -heightBasedDistance                    // Place camera far enough to view full height
+	    );
+
+	    // Calculate look at point - slightly below center for better framing
+	    Vector3 lookAtPoint = new Vector3(
+	        bounds.center.x,                      // Look at center horizontally
+	        bounds.center.y - (bounds.size.y * 0.1f), // Look slightly below center
+	        bounds.center.z                       // Look at center depth
+	    );
+
+	    // Apply camera position and rotation
+	    previewCamera.transform.position = cameraPos;
+	    previewCamera.transform.LookAt(lookAtPoint);
+
+	    // Calculate and set field of view based on the bounds
+	    // This ensures the entire avatar is visible with some margin
+	    float distanceToTarget = Vector3.Distance(cameraPos, lookAtPoint);
+	    float requiredFOV = 2.0f * Mathf.Atan2(bounds.size.y / 1.8f, distanceToTarget) * Mathf.Rad2Deg;
+
+	    // Add padding and ensure FOV is reasonable
+	    requiredFOV += 10f; // Add padding
+	    previewCamera.fieldOfView = Mathf.Clamp(requiredFOV, 40f, 90f);
+
+	    //Debug.Log($"Camera settings: Position={cameraPos}, LookAt={lookAtPoint}, " +
+	    //          $"Distance={distanceToTarget}, FOV={requiredFOV}");
+	}
 
     public void PlayAnimation(string triggerName)
     {

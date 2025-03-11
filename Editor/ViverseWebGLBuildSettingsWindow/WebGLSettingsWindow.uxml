@@ -10,7 +10,7 @@
             <!-- WebGL Specific Settings -->
             <ui:VisualElement class="settings-card">
                 <ui:Label text="WebGL Player Settings" class="card-header" />
-                <ui:Toggle label="Enable Decompression Fallback" name="decompressionFallbackToggle" class="settings-toggle" tooltip="Enable decompression fallback for browsers that don't support Brotli compression" />
+                <ui:Toggle label="Disable Decompression Fallback" name="decompressionFallbackToggle" class="settings-toggle" tooltip="Disable decompression fallback to ensure smooth running in some browsers (recommended)" />
 
                 <!-- Apply Button -->
                 <ui:Button text="Apply WebGL Settings" name="setAllButton" class="apply-button" />

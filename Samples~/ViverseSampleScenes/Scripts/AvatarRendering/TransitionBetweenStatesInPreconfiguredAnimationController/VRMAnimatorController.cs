@@ -3,13 +3,14 @@ using UnityEngine;
 using System;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using UniGLTF;
 
 public class VRMAnimatorController : MonoBehaviour
 {
 	[SerializeField] private RuntimeAnimatorController animatorController;
 	[SerializeField] private string vrmUrl;
 
-	private GameObject loadedModel;
+	private RuntimeGltfInstance loadedModel;
 	private Animator animator;
 	private Dictionary<string, int> stateHashes = new Dictionary<string, int>();
 
@@ -42,14 +43,32 @@ public class VRMAnimatorController : MonoBehaviour
 	{
 		try
 		{
+			CleanupModelIfItExists();
 			loadedModel = await SampleVRMUtility.DownloadAndLoadVRM(vrmUrl);
-			animator = SampleVRMUtility.SetupAnimator(loadedModel, animatorController);
+			//foreach (AnimationClip animationClip in loadedModel.AnimationClips)
+			//{
+			//	Debug.Log($"Animation clip: {animationClip.name}");
+			//}
+			animator = SampleVRMUtility.SetupAnimator(loadedModel.Root, animatorController);
 		}
 		catch (Exception e)
 		{
 			Debug.LogError($"Failed to load VRM or setup animator: {e.Message}");
 			throw;
 		}
+	}
+
+	public void OnDestroy()
+	{
+		CleanupModelIfItExists();
+	}
+
+	void CleanupModelIfItExists()
+	{
+		if (loadedModel == null) return;
+		Destroy(loadedModel.Root);
+		loadedModel = null;
+		stateHashes?.Clear();
 	}
 
 	private void CacheAnimationStates()

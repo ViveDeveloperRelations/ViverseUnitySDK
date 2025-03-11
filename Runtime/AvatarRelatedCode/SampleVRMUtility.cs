@@ -8,7 +8,7 @@ using UniGLTF;
 
 public class SampleVRMUtility
 {
-	public static async Task<GameObject> DownloadAndLoadVRM(string vrmUrl)
+	public static async Task<RuntimeGltfInstance> DownloadAndLoadVRM(string vrmUrl)
 	{
 		using UnityWebRequest www = UnityWebRequest.Get(vrmUrl);
 		UnityWebRequestAsyncOperation asyncOp = www.SendWebRequest();
@@ -25,7 +25,7 @@ public class SampleVRMUtility
 		return await LoadVRMFromBytes(vrmData);
 	}
 
-	public static async Task<GameObject> LoadVRMFromBytes(byte[] vrmData)
+	public static async Task<RuntimeGltfInstance> LoadVRMFromBytes(byte[] vrmData)
 	{
 		GltfData gltfData = null;
 		try
@@ -72,7 +72,7 @@ public class SampleVRMUtility
 			throw new Exception($"Failed to setup VRM model: {e.Message}");
 		}
 
-		return loadedModel;
+		return instance;
 	}
 
 	public static Animator SetupAnimator(GameObject model, RuntimeAnimatorController controller)

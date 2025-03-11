@@ -2,9 +2,14 @@
     "name": "ViverseTestUIAssemblyDefinition",
     "rootNamespace": "",
     "references": [
-        "GUID:83f47babfadef9547bca17d8148b0e87"
+        "GUID:83f47babfadef9547bca17d8148b0e87",
+        "GUID:8d76e605759c3f64a957d63ef96ada7c",
+        "GUID:15fc0a57446b3144c949da3e2b9737a9"
     ],
-    "includePlatforms": [],
+    "includePlatforms": [
+        "Editor",
+        "WebGL"
+    ],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,
@@ -21,6 +26,11 @@
             "name": "com.vrmc.gltf",
             "expression": "",
             "define": "UNI_GLTF_INSTALLED"
+        },
+        {
+            "name": "com.unity.render-pipelines.universal",
+            "expression": "",
+            "define": "URP_INSTALLED"
         }
     ],
     "noEngineReferences": false
