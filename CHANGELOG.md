@@ -1,3 +1,6 @@
+# Version 0.0.3 - 10 march 2025
+- Visual references for README instructions
+
 # Version 0.0.2 - 10 march 2025
 - avatar previews are more consistently centered
 - urp fixes to camera preview

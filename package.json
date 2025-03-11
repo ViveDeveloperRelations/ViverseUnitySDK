@@ -1,6 +1,6 @@
 {
     "name": "com.viverse.unityviversewebglapi",
-    "version": "0.0.2",
+    "version": "0.0.3",
     "description": "Interact with the viverse platform through unity webgl export.",
     "displayName": "Viverse API For WebGL export",
     "author": {
