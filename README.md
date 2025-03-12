@@ -101,12 +101,13 @@ https://github.com/vrm-c/UniVRM.git?path=/Assets/VRM10#v0.128.2
  - Open a new browser instance and go to https://create.viverse.com - you should see logs in the console of your unity editor indicating requests are being served from it, and the configurable driver scene, where you can use test credentials provided in the prerequisites section at the top of this file
 - ![HTTPS Server Setup](SupportingDocuments/test_against_create_viverse_com.png)
 
-### 8. Leaderboard Configuration (Optional)
+### 8. Leaderboard / Achievements Configuration (Optional)
 
 1. Create account on [VIVEPORT Developer Console](https://developer.viveport.com/console/titles)
 2. Get your VIVEPORT ID from the listing
 3. Configure leaderboard names in the VIVEPORT SDK section, using the viveport id as the identifier in the leaderboard section
 ![Viveport ID Setup](SupportingDocuments/Viveport_id_setup.png)
+4. More complete documentation on setup process is here [Viveport ID Setup Document pdf](SupportingDocuments/VP1-Game_Dashboard_Config_Setup_Guideline.pdf)
 
 ## When to disable the hosts file configuration
 

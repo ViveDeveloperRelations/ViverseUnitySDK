@@ -1,3 +1,6 @@
+# Version 0.0.5 - 11 march 2025
+- Link to leaderboard/achievement setup document
+
 # Version 0.0.4 - 11 march 2025
 - Add in achievement api calls, updated smoketest and viversetestui.cs/configurabledriver scene to include them
 
