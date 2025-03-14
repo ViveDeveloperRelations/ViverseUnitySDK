@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.IO;
 using UnityEditor;
@@ -8,98 +8,188 @@ using Debug = UnityEngine.Debug;
 
 public class NodePathHelper
 {
-    /// <summary>
-    /// Gets the Unity Editor installation root directory.
-    /// Example: C:/Program Files/Unity/Hub/Editor/6000.0.34f1/
-    /// </summary>
-    private static string GetUnityEditorRoot()
-    {
-        return Path.GetFullPath(Path.Combine(EditorApplication.applicationPath, "..\\..\\"));
-    }
 
-    /// <summary>
-    /// Gets the path to the WebGL Emscripten BuildTools directory.
-    /// Example: C:/Program Files/Unity/Hub/Editor/6000.0.34f1/Editor/Data/PlaybackEngines/WebGLSupport/BuildTools/Emscripten/
-    /// </summary>
-    private static string GetEmscriptenBuildToolsPath()
-    {
-        return Path.Combine(GetUnityEditorRoot(), "Editor\\Data\\PlaybackEngines\\WebGLSupport\\BuildTools\\Emscripten");
-    }
+	/// <summary>
+	/// Gets the path to Node.js, prioritizing the version installed by NodeInstaller
+	/// </summary>
+	public static string NodePath
+	{
+		get
+		{
+			// First check if NodeInstaller has installed Node.js
+			string installerNodePath = NodeInstaller.GetNodePath();
+			if (!string.IsNullOrEmpty(installerNodePath) && File.Exists(installerNodePath))
+			{
+				return installerNodePath;
+			}
 
-    /// <summary>
-    /// Gets the full path of a given executable in the Emscripten BuildTools directory.
-    /// </summary>
-    private static string NodeDir(string executableName)
-    {
-        string path = Path.Combine(GetEmscriptenBuildToolsPath(), "node", executableName);
-        Assert.IsTrue(File.Exists(path), $"File not found: {path}");
-        return path;
-    }
+			// Fall back to Unity's built-in Node.js
+			return GetUnityNodePath();
+		}
+	}
 
-    public static string NodePath => NodeDir("node.exe");
-    public static string NpxPath => NodeDir("npx.cmd");
-    public static string NpmPath => NodeDir("npm.cmd");
+	/// <summary>
+	/// Gets the path to npm, prioritizing the version installed by NodeInstaller
+	/// </summary>
+	public static string NpmPath
+	{
+		get
+		{
+			// First check if NodeInstaller has installed npm
+			string installerNpmPath = NodeInstaller.GetNpmPath();
+			if (!string.IsNullOrEmpty(installerNpmPath) && File.Exists(installerNpmPath))
+			{
+				return installerNpmPath;
+			}
 
-    /// <summary>
-    /// Runs a command synchronously and returns the output.
-    /// </summary>
-    /// <param name="exePath">The full path to the executable.</param>
-    /// <param name="arguments">The arguments to pass.</param>
-    /// <returns>The standard output of the process.</returns>
-    public static string RunCommand(string exePath, string arguments)
-    {
-        if (!File.Exists(exePath))
-        {
-            Debug.LogError($"Executable not found: {exePath}");
-            return null;
-        }
+			// Fall back to Unity's built-in npm
+			return GetUnityNpmPath();
+		}
+	}
 
-        ProcessStartInfo psi = new ProcessStartInfo
-        {
-            FileName = exePath,
-            Arguments = arguments,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
+	/// <summary>
+	/// Gets the path to npx, prioritizing the version installed by NodeInstaller
+	/// </summary>
+	public static string NpxPath
+	{
+		get
+		{
+			// First check if NodeInstaller has installed npx
+			string installerNpxPath = NodeInstaller.GetNpxPath();
+			if (!string.IsNullOrEmpty(installerNpxPath) && File.Exists(installerNpxPath))
+			{
+				return installerNpxPath;
+			}
 
-        using (Process process = new Process { StartInfo = psi })
-        {
-            process.Start();
-            string output = process.StandardOutput.ReadToEnd();
-            string error = process.StandardError.ReadToEnd();
-            process.WaitForExit();
+			// Fall back to Unity's built-in npx
+			return GetUnityNpxPath();
+		}
+	}
 
-            if (!string.IsNullOrEmpty(error))
-            {
-                Debug.LogError($"Error running {exePath} {arguments}: {error}");
-            }
+	/// <summary>
+	/// Gets the Unity Editor installation root directory.
+	/// </summary>
+	private static string GetUnityEditorRoot()
+	{
+		if (Application.platform == RuntimePlatform.WindowsEditor)
+		{
+			return Path.GetFullPath(Path.Combine(EditorApplication.applicationPath, "..", ".."));
+		}
+		else
+		{
+			return Path.GetFullPath(Path.Combine(EditorApplication.applicationPath));
+		}
+	}
 
-            return output;
-        }
-    }
+	/// <summary>
+	/// Gets the path to the WebGL Emscripten BuildTools directory.
+	/// </summary>
+	private static string GetEmscriptenBuildToolsPath()
+	{
+		if (Application.platform == RuntimePlatform.WindowsEditor)
+		{
+			return Path.GetFullPath(Path.Combine(GetUnityEditorRoot(), "Editor", "Data", "PlaybackEngines",
+				"WebGLSupport", "BuildTools", "Emscripten"));
+		}
+		else
+		{
+			return Path.GetFullPath(Path.Combine(GetUnityEditorRoot(), "Contents", "Tools", "nodejs", "lib",
+				"node_modules", "npm"));
+		}
+	}
 
-    /*
-    [MenuItem("Tools/Run Node Version")]
-    public static void RunNodeVersion()
-    {
-        string output = RunCommand(NodePath, "--version");
-        Debug.Log("Node Version: " + output);
-    }
+	/// <summary>
+	/// Gets the full path of a given executable in the Emscripten BuildTools directory.
+	/// </summary>
+	private static string NodeDir(string executableName)
+	{
+		string path = Path.Combine(GetEmscriptenBuildToolsPath(), "node", executableName);
 
-    [MenuItem("Tools/Run NPM Version")]
-    public static void RunNpmVersion()
-    {
-        string output = RunCommand(NpmPath, "--version");
-        Debug.Log("NPM Version: " + output);
-    }
+		// Don't assert here as we're using this as a fallback
+		if (!File.Exists(path))
+		{
+			Debug.LogWarning($"Unity Node.js executable not found: {path}");
+			return null;
+		}
 
-    [MenuItem("Tools/Run NPX Version")]
-    public static void RunNpxVersion()
-    {
-        string output = RunCommand(NpxPath, "--version");
-        Debug.Log("NPX Version: " + output);
-    }
-    */
+		return path;
+	}
+
+	/// <summary>
+	/// Gets the path to Node.js from Unity's built-in installation
+	/// </summary>
+	public static string GetUnityNodePath()
+	{
+		if (Application.platform == RuntimePlatform.WindowsEditor)
+		{
+			return NodeDir("node.exe");
+		}
+		else
+		{
+			return NodeDir("node");
+		}
+	}
+
+	/// <summary>
+	/// Gets the path to npm from Unity's built-in installation
+	/// </summary>
+	public static string GetUnityNpmPath()
+	{
+		if (Application.platform == RuntimePlatform.WindowsEditor)
+		{
+			return NodeDir("npm.cmd");
+		}
+		else
+		{
+			return NodeDir("npm");
+		}
+	}
+
+	/// <summary>
+	/// Gets the path to npx from Unity's built-in installation
+	/// </summary>
+	public static string GetUnityNpxPath()
+	{
+		if (Application.platform == RuntimePlatform.WindowsEditor)
+		{
+			return NodeDir("npm.cmd");
+		}
+		else
+		{
+			return NodeDir("npx");
+		}
+	}
+
+	/// <summary>
+	/// Runs a Node.js process and returns a SafeHandle to manage its lifecycle.
+	/// </summary>
+	/// <param name="scriptPath">Path to the Node.js script to run</param>
+	/// <param name="arguments">Arguments to pass to the script</param>
+	/// <returns>A NodeProcessSafeHandle that will clean up resources when disposed</returns>
+	public static NodeProcessSafeHandle RunNodeWithSafeHandle(string scriptPath, string arguments = "",DataReceivedEventHandler onOutputReceived = null, DataReceivedEventHandler onErrorReceived = null)
+	{
+		if (!File.Exists(scriptPath))
+		{
+			Debug.LogError($"Script not found: {scriptPath}");
+			return null;
+		}
+
+		try
+		{
+			// Set up output and error handling
+			Process process = NodeInstaller.RunNodeScriptAndReturnProcess(scriptPath, arguments,onOutputReceived, onErrorReceived);
+
+			// Create and initialize the safe handle
+			var nodeSafeHandle = new NodeProcessSafeHandle();
+			nodeSafeHandle.Initialize(process);
+
+			return nodeSafeHandle;
+		}
+		catch (Exception ex)
+		{
+			Debug.LogError($"Failed to start Node.js process: {ex.Message}");
+			return null;
+		}
+	}
+
 }

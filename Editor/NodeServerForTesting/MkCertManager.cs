@@ -97,26 +97,131 @@ public class MkCertManager
     {
 	    GenerateSSLCertificate("create.viverse.com");
     }
+    public static string GetExePath(string exeName)
+    {
+	    // Get PATH environment variable
+	    string path = Environment.GetEnvironmentVariable("PATH") ?? "";
+	    string delimiter = Path.PathSeparator.ToString();
+
+	    if (Application.platform == RuntimePlatform.OSXEditor)
+	    {
+		    // On macOS, also check the common Homebrew paths that might not be in PATH
+		    var additionalPaths = new[]
+		    {
+			    "/opt/homebrew/bin",       // Apple Silicon Homebrew
+			    "/usr/local/bin",          // Intel Homebrew
+			    "/opt/local/bin",          // MacPorts
+			    $"{Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)}/.local/bin" // User local bin
+		    };
+		    foreach (var additionalPath in additionalPaths)
+		    {
+			    if (!path.Contains(additionalPath))
+			    {
+				    path = $"{additionalPath}{delimiter}{path}";
+			    }
+		    }
+	    }
+
+	    // Split path by delimiter
+	    string[] directories = path.Split(delimiter);
+
+	    // Search for the executable in each directory
+	    foreach (string directory in directories)
+	    {
+		    if (string.IsNullOrEmpty(directory)) continue;
+
+		    string fullPath = Path.Combine(directory, exeName);
+		    if (File.Exists(fullPath))
+		    {
+			    return fullPath;
+		    }
+
+		    if (Application.platform == RuntimePlatform.WindowsEditor && File.Exists(fullPath+".exe"))
+		    {
+			    return fullPath + ".exe";
+		    }
+	    }
+	    // Look for the executable in each directory
+	    foreach (string directory in directories)
+	    {
+		    if (string.IsNullOrEmpty(directory)) continue;
+
+		    string fullPath = Path.Combine(directory, exeName);
+		    if (File.Exists(fullPath))
+		    {
+			    return fullPath;
+		    }
+	    }
+
+	    return exeName;
+    }
+
+    public static string MkcertPath()
+    {
+	    return GetExePath("mkcert");
+    }
+    /// <summary>
+    /// Checks if mkcert is installed on the system
+    /// </summary>
+    public static bool IsMkcertInstalled()
+    {
+	    if (!File.Exists(MkCertManager.MkcertPath()))
+	    {
+		    return false;
+	    }
+	    try
+	    {
+		    Process process = new Process();
+
+		    process.StartInfo.FileName = MkCertManager.MkcertPath();
+		    process.StartInfo.Arguments = "-version";
+		    process.StartInfo.UseShellExecute = false;
+		    process.StartInfo.RedirectStandardOutput = true;
+		    process.StartInfo.RedirectStandardError = true;
+		    process.StartInfo.CreateNoWindow = true;
+
+		    process.Start();
+		    process.WaitForExit();
+
+		    bool installed = process.ExitCode == 0;
+
+		    return installed;
+	    }
+	    catch (Exception e)
+	    {
+		    Debug.LogException(e);
+		    return false;
+	    }
+    }
+
     public static bool GenerateSSLCertificate(string domainToInstallFor)
     {
 	    EnsureToolsDirectoryExists();
-	    (string output, bool success) = RunCommand("mkcert", "-version", printErrors: true);
+	    (string output, bool success) = RunCommand(MkcertPath(), "-version", printErrors: true);
 	    if(!success)
 	    {
 		    Debug.LogError("mkcert is not installed. Please install it globally and restart Unity.");
 		    return false;
 	    }
 
-	    Debug.Log("Running mkcert -install...");
-	    (output, success) = RunCommand("mkcert", "-install", printErrors: false);
-	    if(!success && (!string.IsNullOrWhiteSpace(output) && !output.Contains("The local CA is already installed in the system trust store")))
+	    if (Application.platform != RuntimePlatform.OSXEditor)
 	    {
-		    Debug.LogError("mkcert -install failed.");
-		    return false;
+		    //osx needs elevated privileges for install, so skip it
+		    Debug.Log("Running mkcert -install...");
+		    (output, success) = RunCommand(MkcertPath(), "-install", printErrors: false);
+		    if(!success && (!string.IsNullOrWhiteSpace(output) && !output.Contains("The local CA is already installed in the system trust store")))
+		    {
+			    Debug.LogError("mkcert -install failed.");
+			    return false;
+		    }
 	    }
 
+
 	    Debug.Log($"Generating SSL certificate for {domainToInstallFor}...");
-	    (output, success) = RunCommandButReturnErrorStream("mkcert", $"-key-file \"{ToolsPath}\\{domainToInstallFor}-key.pem\" -cert-file \"{ToolsPath}\\{domainToInstallFor}.pem\" {domainToInstallFor}", printErrors: false);
+	    string keyPath = Path.Combine(ToolsPath, $"{domainToInstallFor}-key.pem");
+	    string certPath = Path.Combine(ToolsPath, $"{domainToInstallFor}.pem");
+
+	    (output, success) = RunCommandButReturnErrorStream(MkcertPath(), $"-key-file \"{keyPath}\" -cert-file \"{certPath}\" {domainToInstallFor}", printErrors: false);
 
 	    string normalizedOutput = string.IsNullOrWhiteSpace(output) ? "" : output.Normalize(NormalizationForm.FormC);
 

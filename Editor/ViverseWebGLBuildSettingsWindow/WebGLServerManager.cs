@@ -1,5 +1,7 @@
-﻿using System.Diagnostics;
+﻿using System;
+using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
@@ -21,37 +23,6 @@ public class WebGLServerManager
     public const string CertificatesGeneratedKey = "WebGLSettings_CertificatesGenerated";
     public const string NodeModulesInstalledKey = "WebGLSettings_NodeModulesInstalled";
     public const string ServerScriptCopiedKey = "WebGLSettings_ServerScriptCopied";
-
-    /// <summary>
-    /// Checks if mkcert is installed on the system
-    /// </summary>
-    public bool IsMkcertInstalled()
-    {
-        try
-        {
-            Process process = new Process();
-            process.StartInfo.FileName = "mkcert";
-            process.StartInfo.Arguments = "-version";
-            process.StartInfo.UseShellExecute = false;
-            process.StartInfo.RedirectStandardOutput = true;
-            process.StartInfo.RedirectStandardError = true;
-            process.StartInfo.CreateNoWindow = true;
-
-            process.Start();
-            process.WaitForExit();
-
-            bool installed = process.ExitCode == 0;
-            if (installed)
-            {
-                SessionState.SetBool(MkcertInstalledKey, true);
-            }
-            return installed;
-        }
-        catch
-        {
-            return false;
-        }
-    }
 
     /// <summary>
     /// Generates SSL certificates using MkCertManager
@@ -105,9 +76,10 @@ public class WebGLServerManager
     public ServerSetupStatus GetServerSetupStatus()
     {
         bool mkcertInstalled = SessionState.GetBool(MkcertInstalledKey, false);
-        if (!mkcertInstalled && IsMkcertInstalled())
+        if (!mkcertInstalled && MkCertManager.IsMkcertInstalled())
         {
             mkcertInstalled = true;
+            SessionState.SetBool(MkcertInstalledKey, true);
         }
 
         bool certificatesGenerated = SessionState.GetBool(CertificatesGeneratedKey, false);

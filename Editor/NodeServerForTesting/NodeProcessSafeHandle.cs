@@ -26,6 +26,14 @@ public sealed class NodeProcessSafeHandle : SafeHandle
 		handle = Marshal.AllocHGlobal(1);
 	}
 
+	public void Release()
+	{
+		if (!IsInvalid)
+		{
+			ReleaseHandle();
+		}
+	}
+
 	protected override bool ReleaseHandle()
 	{
 		try

@@ -36,6 +36,10 @@ public class WebGLSettingsWindow : EditorWindow
     private Button _checkMkcertButton;
     private Label _certStatusLabel;
     private Button _generateCertButton;
+	// Mac-only Node.js installation UI elements
+	private VisualElement _nodeInstallContainer;
+	private Label _nodeInstallStatusLabel;
+	private Button _installNodeButton;
     private Label _nodeModulesStatusLabel;
     private Button _installNodeModulesButton;
     private Label _serverScriptStatusLabel;
@@ -393,7 +397,7 @@ public class WebGLSettingsWindow : EditorWindow
         var step1Container = CreateStepContainer("1");
         _mkcertStatusLabel = CreateStatusLabel("Checking mkcert installation...");
         _checkMkcertButton = CreateButton("Check mkcert Installation", () => {
-            bool installed = _serverManager.IsMkcertInstalled();
+            bool installed = MkCertManager.IsMkcertInstalled();
             if (!installed)
             {
                 EditorUtility.DisplayDialog("mkcert Not Found",
@@ -420,8 +424,25 @@ public class WebGLSettingsWindow : EditorWindow
         step2Container.Add(_generateCertButton);
         _serverSetupContainer.Add(step2Container);
 
+		// Mac-only Step: Install Node.js if needed
+		if (Application.platform == RuntimePlatform.OSXEditor)
+		{
+			_nodeInstallContainer = CreateStepContainer("3a");
+			_nodeInstallStatusLabel = CreateStatusLabel("Checking Node.js installation...");
+			_installNodeButton = CreateButton("Install Node.js", () => {
+				NodeInstaller.InstallNode();
+				// We need to wait a bit for the installation to complete
+				EditorApplication.delayCall += () => {
+					UpdateServerSetupUI();
+				};
+			});
+			_nodeInstallContainer.Add(_nodeInstallStatusLabel);
+			_nodeInstallContainer.Add(_installNodeButton);
+			_serverSetupContainer.Add(_nodeInstallContainer);
+		}
+
         // Step 3: Install Node modules
-        var step3Container = CreateStepContainer("3");
+		var step3Container = CreateStepContainer(Application.platform == RuntimePlatform.OSXEditor ? "3b" : "3");
         _nodeModulesStatusLabel = CreateStatusLabel("Node modules not installed");
         _installNodeModulesButton = CreateButton("Install Node Modules", () => {
             _serverManager.InstallNodeModules();
@@ -444,7 +465,10 @@ public class WebGLSettingsWindow : EditorWindow
 
         // Step 5: Start/Stop server
         var step5Container = CreateStepContainer("5");
-        _serverRunningToggle = new Toggle("HTTPS Server Running");
+        _serverRunningToggle = new Toggle("HTTPS Server Running")
+        {
+	        value = SessionState.GetBool(NodeServerManager.ServerStateKey, false)
+        };
         _serverRunningToggle.AddToClassList("server-toggle");
         _serverRunningToggle.RegisterValueChangedCallback(evt => {
             if (evt.newValue)
@@ -633,8 +657,29 @@ public class WebGLSettingsWindow : EditorWindow
             _generateCertButton.style.display = DisplayStyle.Flex;
         }
 
-        // Update Step 3: Node modules
-        _installNodeModulesButton.SetEnabled(status.CertificatesGenerated);
+		// Mac-only: Update Node.js installation status
+		bool nodeInstalled = true; // Default to true for non-macOS platforms
+		if (Application.platform == RuntimePlatform.OSXEditor)
+		{
+			nodeInstalled = NodeInstaller.IsNodeInstalled();
+			if (nodeInstalled)
+			{
+				_nodeInstallStatusLabel.text = "✓ Node.js is installed";
+				_nodeInstallStatusLabel.style.color = new Color(0, 0.7f, 0);
+				_installNodeButton.style.display = DisplayStyle.None;
+			}
+			else
+			{
+				_nodeInstallStatusLabel.text = "⚠ Node.js needs to be installed";
+				_nodeInstallStatusLabel.style.color = new Color(0.7f, 0.5f, 0);
+				_installNodeButton.style.display = DisplayStyle.Flex;
+			}
+		}
+
+		// Update Step 3/3b: Node modules
+		// Enable button only if certificates are generated and Node.js is installed (on macOS)
+		_installNodeModulesButton.SetEnabled(status.CertificatesGenerated && nodeInstalled);
+
         if (status.NodeModulesInstalled)
         {
             _nodeModulesStatusLabel.text = "✓ Node modules installed";

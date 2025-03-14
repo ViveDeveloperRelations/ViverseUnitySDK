@@ -156,7 +156,7 @@ For more comprehensive guides on using browser developer tools:
    - To test achievements, launch a browser instance with cors disabled
    - For chrome, an example command line(change to match your chrome instance and where an empty folder for the dev session data will be) is:
       - "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe" --user-data-dir="C:/Chrome dev session" --disable-web-security --ignore-certificate-errors --disable-features=StrictOriginWhenCrossOrigin --test-type
-
+- On mac, if you see errors when starting the server when it worked before, close unity, then open a terminal and type "killall node"
 ## Build Output Structure
 
 After building, your `Build` folder should contain:
@@ -198,8 +198,12 @@ If you encounter SSL certificate issues:
 
 ### Mkcert not found showing up after installation
 - if you see something like this, then you may need to reboot to make sure that unity gets mkcert path
-- Remember that macos support is coming soon, so if you're on mac, this is as likely as far as you can go for now
  ![Mkcert not found dialog box](SupportingDocuments/Mkcert_not_found_needs_reboot.jpeg)
+- on macos currently mkcert needs to be installed in one of the following directories due to the way that unity on mac handles passing environment variables from the user:
+  - /opt/homebrew/bin
+  - /usr/local/bin
+  - /opt/local/bin
+  - ~/.local/bin
 
 ## Version History
 

@@ -1,3 +1,6 @@
+# Version 0.0.6 - 13 march 2025
+- initial mac in-editor browser support
+
 # Version 0.0.5 - 11 march 2025
 - Link to leaderboard/achievement setup document
 
