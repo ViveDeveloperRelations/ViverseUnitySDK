@@ -185,7 +185,7 @@ If you encounter SSL certificate issues:
 2. Delete the `tools` directory
 3. Reopen project
 4. Reconfigure HTTPS server in WebGL settings
-5. Clear HSTS data if needed:
+5. Clear HSTS data for viverse.com and create.viverse.com if needed:
    - Chrome: chrome://net-internals/#hsts
    - Edge: edge://net-internals/#hsts
    - Firefox: Not supported

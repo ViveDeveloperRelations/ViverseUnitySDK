@@ -2,13 +2,9 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Net;
-using System.Threading.Tasks;
 using UnityEditor;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
-using System.Net.Sockets;
 
 
 public class NodeServerManager
@@ -54,7 +50,7 @@ public class NodeServerManager
 		}
 
 		// Install express, https, and morgan
-		string npmInstallCommand = $"install express https morgan cors --prefix \"{LibsPath}\" --loglevel=error";
+		string npmInstallCommand = $"install express@4.21.2 https@1.0.0 morgan@1.10.0 cors@2.8.5 --prefix \"{LibsPath}\" --loglevel=error";
 		NodeInstaller.RunNpmCommand(npmInstallCommand);
 		//RunCommand(NpmPath, npmInstallCommand, waitForExit: true);
 	}

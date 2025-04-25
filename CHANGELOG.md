@@ -1,3 +1,6 @@
+# Version 0.0.7 - 25 april 2025
+- node server dependency defaults set correctly, so fresh installs should work after express default version went from 4x to 5x (which is not compatible with unity's npm/npx)
+
 # Version 0.0.6 - 13 march 2025
 - initial mac in-editor browser support
 

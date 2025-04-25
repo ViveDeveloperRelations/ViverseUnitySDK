@@ -654,16 +654,17 @@ public class NodeInstaller
 		};
 
 		// Setup environment variables specifically for Node.js
-		psi.EnvironmentVariables["PATH"] = NodeInstallPath + Path.PathSeparator +
-		                                   (Application.platform == RuntimePlatform.WindowsEditor ? "" : "/bin" + Path.PathSeparator) +
-		                                   psi.EnvironmentVariables["PATH"];
+		var newPath = NodeInstallPath + Path.PathSeparator +
+		              (Application.platform == RuntimePlatform.WindowsEditor ? "" : "/bin" + Path.PathSeparator) +
+		              psi.EnvironmentVariables["PATH"];
+		psi.EnvironmentVariables["PATH"] = newPath;
+
+		string nodeModulesPath = Path.Combine(NodeInstallPath, "lib", "node_modules");
+		psi.EnvironmentVariables["NODE_PATH"] = nodeModulesPath;
 
 		// For macOS/Linux, set NODE_PATH to the lib/node_modules
 		if (Application.platform != RuntimePlatform.WindowsEditor)
 		{
-			string nodeModulesPath = Path.Combine(NodeInstallPath, "lib", "node_modules");
-			psi.EnvironmentVariables["NODE_PATH"] = nodeModulesPath;
-
 			// On macOS, npm and npx are shell scripts that rely on /usr/bin/env to find node
 			// So if we're executing npm/npx directly, we need to handle it differently
 			if ((command.EndsWith("/npm") || command.EndsWith("/npx")) &&
