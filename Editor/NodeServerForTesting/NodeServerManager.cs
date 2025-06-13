@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Text;
 using UnityEditor;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
@@ -9,27 +10,80 @@ using Debug = UnityEngine.Debug;
 
 public class NodeServerManager
 {
-	private static string ToolsPath => Path.GetFullPath(Path.Combine(Application.dataPath, "..", "tools"));
-	private static string LibsPath => Path.Combine(ToolsPath, "libs");
+	public static string ToolsPath => Path.GetFullPath(Path.Combine(Application.dataPath, "..", "tools"));
+	public static string LibsPath => Path.Combine(ToolsPath, "libs");
+	public static string NodeModulesPath => Path.Combine(LibsPath, "node_modules");
 
-	private static string ServerScriptName = "server.js";
-	private static string CertPath => Path.Combine(ToolsPath, "create.viverse.com.pem");
-	private static string KeyPath => Path.Combine(ToolsPath, "create.viverse.com-key.pem");
+	public static string ServerScriptName = "server.js";
+	public static string CertPath => Path.Combine(ToolsPath, "create.viverse.com.pem");
+	public static string KeyPath => Path.Combine(ToolsPath, "create.viverse.com-key.pem");
 
-	private static string NodePath => NodePathHelper.NodePath;
-	private static string NpmPath => NodePathHelper.NpmPath;
+	public static string NodePath => NodePathHelper.NodePath;
+	public static string NpmPath => NodePathHelper.NpmPath;
+	public static bool ServerScriptExists => File.Exists(Path.Combine(NodeServerManager.ToolsPath, NodeServerManager.ServerScriptName));
+	public static bool ServerScriptIsTheSameAsOneInEditor()
+	{
+		string scriptInEditorPath = ServerScriptPath; // Path to server.js in Assets
+		string scriptInToolsPath = Path.Combine(ToolsPath, ServerScriptName); // Path to server.js in Tools
 
+		// Check if either file doesn't exist. If so, they are not the same.
+		if (!File.Exists(scriptInEditorPath))
+		{
+			// Debug.LogWarning($"Server script not found in Editor: {scriptInEditorPath}"); // Optional: uncomment for debugging
+			return false;
+		}
+
+		if (!File.Exists(scriptInToolsPath))
+		{
+			// Debug.LogWarning($"Server script not found in Tools path: {scriptInToolsPath}"); // Optional: uncomment for debugging
+			return false;
+		}
+
+		try
+		{
+			// Compare file contents byte by byte
+			byte[] editorFileBytes = File.ReadAllBytes(scriptInEditorPath);
+			byte[] toolsFileBytes = File.ReadAllBytes(scriptInToolsPath);
+
+			if (editorFileBytes.Length != toolsFileBytes.Length)
+			{
+				return false; // Different sizes mean they are different
+			}
+
+			for (int i = 0; i < editorFileBytes.Length; i++)
+			{
+				if (editorFileBytes[i] != toolsFileBytes[i])
+				{
+					return false; // Found a byte difference
+				}
+			}
+			return true; // Files are identical
+		}
+		catch (IOException ex)
+		{
+			Debug.LogError($"Error comparing server scripts: {ex.Message}");
+			return false; // If an error occurs, assume they are not the same
+		}
+	}
+
+	private static string ServerScriptPath
+	{
+		get
+		{
+			string scriptSource = FindScriptPath(ServerScriptName);
+			if (string.IsNullOrEmpty(scriptSource))
+			{
+				Debug.LogError($"server.js not found in Unity project.");
+				return default;
+			}
+			return scriptSource;
+		}
+	}
 
 	//[MenuItem("Tools/Copy Server Script")]
 	public static void CopyServerScript()
 	{
-		string scriptSource = FindScriptPath(ServerScriptName);
-
-		if (string.IsNullOrEmpty(scriptSource))
-		{
-			Debug.LogError($"server.js not found in Unity project.");
-			return;
-		}
+		string scriptSource = ServerScriptPath;
 
 		if (!Directory.Exists(ToolsPath))
 		{
@@ -41,6 +95,42 @@ public class NodeServerManager
 		Debug.Log($"Copied {ServerScriptName} to {ToolsPath}");
 	}
 
+	private static readonly NodeInstaller.NodeModuleVersionInfo[] NodeModulesNeeded = new[]
+	{
+		new NodeInstaller.NodeModuleVersionInfo(){NodeModuleName="express", NodeModuleVersion = "4.21.2"},
+		new NodeInstaller.NodeModuleVersionInfo(){NodeModuleName="https", NodeModuleVersion = "1.0.0"},
+		new NodeInstaller.NodeModuleVersionInfo(){NodeModuleName="morgan", NodeModuleVersion = "1.10.0"},
+		new NodeInstaller.NodeModuleVersionInfo(){NodeModuleName="cors", NodeModuleVersion = "2.8.5"},
+		new NodeInstaller.NodeModuleVersionInfo(){NodeModuleName="express-static-gzip", NodeModuleVersion = "2.2.0"},
+	};
+
+    public static bool AllNodeModulesAreInstalled()
+    {
+	    List<NodeInstaller.NodeModuleVersionInfo> installedModules = NodeInstaller.GetNodeModulesFromDirectory(NodeModulesPath);
+	    //NOTE: this does not remove anything at the moment, extra packages will be ignored
+	    foreach (NodeInstaller.NodeModuleVersionInfo requiredModule in NodeModulesNeeded)
+	    {
+		    bool found = false;
+		    foreach (NodeInstaller.NodeModuleVersionInfo installedModule in installedModules)
+		    {
+			    if (installedModule.NodeModuleName == requiredModule.NodeModuleName &&
+			        installedModule.NodeModuleVersion == requiredModule.NodeModuleVersion)
+			    {
+				    found = true;
+				    break;
+			    }
+		    }
+
+		    if (!found)
+		    {
+			    //Debug.Log($"Did not find package {requiredModule.NodeModuleName} with version {requiredModule.NodeModuleVersion} ");
+			    return false;
+		    }
+	    }
+
+	    return true;
+    }
+
 	//[MenuItem("Tools/Install Node Modules")]
 	public static void InstallNodeModules()
 	{
@@ -49,10 +139,15 @@ public class NodeServerManager
 			Directory.CreateDirectory(LibsPath);
 		}
 
-		// Install express, https, and morgan
-		string npmInstallCommand = $"install express@4.21.2 https@1.0.0 morgan@1.10.0 cors@2.8.5 --prefix \"{LibsPath}\" --loglevel=error";
+		StringBuilder nodeModulesStringBuilder = new StringBuilder();
+		foreach (NodeInstaller.NodeModuleVersionInfo nodeModuleVersionInfo in NodeModulesNeeded)
+		{
+			nodeModulesStringBuilder.Append(
+				$"{nodeModuleVersionInfo.NodeModuleName}@{nodeModuleVersionInfo.NodeModuleVersion} ");
+		}
+		string npmInstallCommand = $"install {nodeModulesStringBuilder} --prefix \"{LibsPath}\" --loglevel=error";
+		//Debug.Log("Running npm "+npmInstallCommand);
 		NodeInstaller.RunNpmCommand(npmInstallCommand);
-		//RunCommand(NpmPath, npmInstallCommand, waitForExit: true);
 	}
 
 	private static string FindScriptPath(string filename)

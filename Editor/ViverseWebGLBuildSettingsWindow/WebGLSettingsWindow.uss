@@ -193,3 +193,22 @@
     color: #ffcc80;
     white-space: normal;
 }
+
+.settings-foldout {
+    margin-top: 8px;
+    margin-bottom: 8px;
+}
+
+.settings-foldout .unity-toggle {
+    margin-left: 16px;
+}
+
+.settings-foldout .unity-foldout__toggle {
+    margin-bottom: 4px;
+    color: #b0b0b0;
+    -unity-font-style: bold;
+}
+
+.settings-foldout .unity-foldout__content {
+    margin-left: 8px;
+}

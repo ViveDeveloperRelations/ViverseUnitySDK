@@ -16,11 +16,15 @@
 
             <!-- Login Section -->
             <engine:VisualElement class="card">
-                <engine:Label text="Login" class="card-title"/>
+                <engine:Label text="Login (v1.2.9)" class="card-title"/>
+                <engine:TextField label="State Parameter (Optional)" name="state-parameter-input" tooltip="Optional state parameter for loginWithWorlds"/>
                 <engine:VisualElement class="button-row">
+                    <engine:Button text="Check Auth Status" name="check-auth-button"/>
                     <engine:Button text="Login with VIVERSE" name="login-button"/>
                     <engine:Button text="Logout" name="logout-button"/>
                 </engine:VisualElement>
+                <engine:Label text="Auth Status:" class="section-label"/>
+                <engine:TextField name="auth-status-result" multiline="true" readonly="true" class="result-field"/>
                 <engine:Label text="Login Result:" class="section-label"/>
                 <engine:TextField name="login-result" multiline="true" readonly="true" class="result-field"/>
                 <engine:Label text="Token Info:" class="section-label"/>
@@ -29,14 +33,23 @@
 
             <!-- Avatar Service Section -->
             <engine:VisualElement class="card">
-                <engine:Label text="Avatar Service" class="card-title"/>
+                <engine:Label text="Avatar Service (v1.2.9)" class="card-title"/>
                 <engine:VisualElement class="button-row">
                     <engine:Button text="Load Profile" name="load-profile-button"/>
                     <engine:Button text="Load My Avatars" name="load-avatars-button"/>
                     <engine:Button text="Load Public Avatars" name="load-public-avatars-button"/>
                 </engine:VisualElement>
+                <engine:VisualElement class="button-row">
+                    <engine:Button text="Get Active Avatar" name="get-active-avatar-button"/>
+                </engine:VisualElement>
+                <engine:TextField label="Avatar ID" name="avatar-id-input" tooltip="Enter a public avatar ID to fetch details"/>
+                <engine:Button text="Get Avatar by ID" name="get-avatar-by-id-button"/>
                 <engine:Label text="Profile:" class="section-label"/>
                 <engine:TextField name="profile-result" multiline="true" readonly="true" class="result-field"/>
+                <engine:Label text="Active Avatar:" class="section-label"/>
+                <engine:TextField name="active-avatar-result" multiline="true" readonly="true" class="result-field"/>
+                <engine:Label text="Avatar by ID:" class="section-label"/>
+                <engine:TextField name="avatar-by-id-result" multiline="true" readonly="true" class="result-field"/>
                 <engine:Label text="Avatars:" class="section-label"/>
                 <engine:VisualElement name="avatar-container" class="avatar-grid"/>
                 <engine:Button text="Cycle Through Avatars" name="cycle-avatars-button"/>
@@ -82,6 +95,22 @@
                 </engine:VisualElement>
                 <engine:Label text="Results:" class="section-label"/>
                 <engine:TextField name="leaderboard-result" multiline="true" readonly="true" class="result-field"/>
+            </engine:VisualElement>
+
+            <!-- Multiplayer Service Section -->
+            <engine:VisualElement class="card">
+                <engine:Label text="Multiplayer Service" class="card-title"/>
+                <engine:TextField label="Room Name" name="room-id-input" tooltip="Enter room name to join or create"/>
+                <engine:VisualElement class="button-row">
+                    <engine:Button text="Join/Create Room" name="subscribe-room-button"/>
+                    <engine:Button text="Leave Room" name="unsubscribe-room-button"/>
+                    <engine:Button text="Clear Events" name="clear-events-button"/>
+                </engine:VisualElement>
+                <engine:Label name="room-status-label" class="status-text" text="❌ Not connected to any room"/>
+                <engine:TextField label="Test Message" name="test-message-input" tooltip="Enter a message to send as a test event"/>
+                <engine:Button text="Send Test Event" name="send-test-event-button"/>
+                <engine:Label text="Event Log:" class="section-label"/>
+                <engine:TextField name="event-log-result" multiline="true" readonly="true" class="result-field" tooltip="Real-time events from room and multiplayer communication"/>
             </engine:VisualElement>
 
             <!-- Loading Overlay -->

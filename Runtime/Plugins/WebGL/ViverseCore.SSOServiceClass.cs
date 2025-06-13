@@ -16,15 +16,23 @@ namespace ViverseWebGLAPI
 			private static extern bool SSO_InitializeClient(string clientId, string domain, string cookieDomain);
 
 			[DllImport("__Internal")]
-			private static extern void SSO_LoginWithRedirect(string redirectUrl, int taskId, Action<string> callback);
+			private static extern void SSO_InitializeClientAsync(string clientId, string domain, string cookieDomain, int taskId, Action<string> callback);
+
+			[DllImport("__Internal")]
+			private static extern void SSO_LoginWithWorlds(string state, int taskId, Action<string> callback);
+			[DllImport("__Internal")]
+			private static extern void SSO_CheckAuth(int taskId, Action<string> callback);
 			[DllImport("__Internal")]
 			private static extern void SSO_Logout(string redirectUrl, int taskId, Action<string> callback);
 
 			[DllImport("__Internal")]
-			private static extern void SSO_HandleCallback(int taskId, Action<string> callback);
+			private static extern void SSO_GetAccessToken(int taskId, Action<string> callback);
 
 			[DllImport("__Internal")]
-			private static extern void SSO_GetAccessToken(int taskId, Action<string> callback);
+			private static extern void SSO_DetectAndHandleOAuthCallback(string clientId, string domain, string cookieDomain, int taskId, Action<string> callback);
+
+			[DllImport("__Internal")]
+			private static extern void SSO_ForceReinitializeClient(string clientId, string domain, string cookieDomain, int taskId, Action<string> callback);
 
 			private readonly SSODomain _ssoDomain;
 
@@ -35,73 +43,46 @@ namespace ViverseWebGLAPI
 				_ssoDomain = ssoDomain;
 			}
 
-			public bool Initialize(string clientId, string cookieDomain = null)
+			public async Task<bool> Initialize(string clientId, string cookieDomain = null)
 			{
 				if (string.IsNullOrEmpty(clientId)) throw new ArgumentNullException(nameof(clientId));
-				return SSO_InitializeClient(clientId, _ssoDomain.SSODomainString, cookieDomain);
+				
+				var result = await ViverseAsyncHelperLib.WrapAsyncWithPayload(
+					SSO_InitializeClientAsync, 
+					clientId, 
+					_ssoDomain.SSODomainString, 
+					cookieDomain
+				);
+				return result.ViverseSDKReturnCode == ViverseSDKReturnCode.Success;
 			}
 
 			public async Task<ViverseResult<AccessTokenResult>> GetAccessToken()
 			{
-				var result = await CallNativeViverseFunction(SSO_GetAccessToken);
-				if (result.ViverseSDKReturnCode != ViverseSDKReturnCode.Success)
-				{
-					Debug.LogWarning(
-						$"Failed to get access token: {ReturnCodeHelper.GetErrorMessage(result.ViverseSDKReturnCode)}");
-					return ViverseResult<AccessTokenResult>.Failure(result);
-				}
-
-				try
-				{
-					var accessTokenResult = JsonUtility.FromJson<AccessTokenResult>(result.Payload);
-					return ViverseResult<AccessTokenResult>.Success(accessTokenResult, result);
-				}
-				catch (Exception e)
-				{
-					Debug.LogError($"Failed to parse access token result: {e.Message}");
-					return ViverseResult<AccessTokenResult>.Failure(result);
-				}
+				return await ViverseAsyncHelperLib.ExecuteWithResult(
+					() => ViverseAsyncHelperLib.WrapAsyncWithPayload(SSO_GetAccessToken),
+					ViverseAsyncHelperLib.ParseJsonPayload<AccessTokenResult>,
+					"Get Access Token"
+				);
 			}
 
-			public async Task<ViverseResult<LoginResult>> LoginWithRedirect(URLUtils.URLParts currentUrl)
+			public async Task<ViverseResult<LoginResult>> CheckAuth()
 			{
-				if (currentUrl == null)
-				{
-					var invalidParamResult = new ViverseSDKReturn
-					{
-						ReturnCode = (int)ViverseSDKReturnCode.ErrorInvalidParameter,
-						Message = "Current URL is null"
-					};
-					return ViverseResult<LoginResult>.Failure(invalidParamResult);
-				}
-
-				var redirectUrl = currentUrl.ReconstructURL();
-				Debug.Log($"LoginWithRedirect URL: {redirectUrl}");
-
-				void LoginWrapper(int taskId, Action<string> callback)
-				{
-					SSO_LoginWithRedirect(redirectUrl, taskId, callback);
-				}
-
-				var result = await CallNativeViverseFunction(LoginWrapper);
-				if (result.ViverseSDKReturnCode != ViverseSDKReturnCode.Success)
-				{
-					Debug.LogWarning(
-						$"Failed to login with redirect: {ReturnCodeHelper.GetErrorMessage(result.ViverseSDKReturnCode)}");
-					return ViverseResult<LoginResult>.Failure(result);
-				}
-
-				try
-				{
-					var loginResult = JsonUtility.FromJson<LoginResult>(result.Payload);
-					return ViverseResult<LoginResult>.Success(loginResult, result);
-				}
-				catch (Exception e)
-				{
-					Debug.LogError($"Failed to parse login result: {e.Message}");
-					return ViverseResult<LoginResult>.Failure(result);
-				}
+				return await ViverseAsyncHelperLib.ExecuteWithResult(
+					() => ViverseAsyncHelperLib.WrapAsyncWithPayload(SSO_CheckAuth),
+					ViverseAsyncHelperLib.ParseJsonPayload<LoginResult>,
+					"Check Auth"
+				);
 			}
+
+			public async Task<ViverseResult<LoginResult>> LoginWithWorlds(string state = null)
+			{
+				return await ViverseAsyncHelperLib.ExecuteWithResult(
+					() => ViverseAsyncHelperLib.WrapAsyncWithPayload(SSO_LoginWithWorlds, state ?? ""),
+					ViverseAsyncHelperLib.ParseJsonPayload<LoginResult>,
+					"Login With Worlds"
+				);
+			}
+
 
 			public async Task<ViverseResult<bool>> Logout(URLUtils.URLParts currentUrl)
 			{
@@ -116,44 +97,51 @@ namespace ViverseWebGLAPI
 				}
 
 				var redirectUrl = currentUrl.ReconstructURL();
-				Debug.Log($"Logout redirect URL: {redirectUrl}");
+				ViverseLogger.LogInfo(ViverseLogger.Categories.SSO, "Logout redirect URL: {0}", redirectUrl);
 
-				void LogoutWrapper(int taskId, Action<string> callback)
-				{
-					SSO_Logout(redirectUrl, taskId, callback);
-				}
-
-				var result = await CallNativeViverseFunction(LogoutWrapper);
-				if (result.ViverseSDKReturnCode != ViverseSDKReturnCode.Success)
-				{
-					Debug.LogWarning($"Failed to logout: {ReturnCodeHelper.GetErrorMessage(result.ViverseSDKReturnCode)}");
-					return ViverseResult<bool>.Failure(result);
-				}
-
-				return ViverseResult<bool>.Success(true, result);
+				return await ViverseAsyncHelperLib.ExecuteWithBoolResult(
+					() => ViverseAsyncHelperLib.WrapAsyncWithPayload(SSO_Logout, redirectUrl),
+					"Logout"
+				);
 			}
 
-			public async Task<ViverseResult<LoginResult>> HandleCallback()
+			/// <summary>
+			/// Detect and handle OAuth callback, reinitializing client if needed
+			/// </summary>
+			public async Task<ViverseResult<OAuthCallbackResult>> DetectAndHandleOAuthCallback(string clientId, string cookieDomain = null)
 			{
-				var result = await CallNativeViverseFunction(SSO_HandleCallback);
-				if (result.ViverseSDKReturnCode != ViverseSDKReturnCode.Success)
-				{
-					Debug.LogWarning(
-						$"Failed to handle callback: {ReturnCodeHelper.GetErrorMessage(result.ViverseSDKReturnCode)}");
-					return ViverseResult<LoginResult>.Failure(result);
-				}
-
-				try
-				{
-					var loginResult = JsonUtility.FromJson<LoginResult>(result.Payload);
-					return ViverseResult<LoginResult>.Success(loginResult, result);
-				}
-				catch (Exception e)
-				{
-					Debug.LogError($"Failed to parse login result: {e.Message}");
-					return ViverseResult<LoginResult>.Failure(result);
-				}
+				if (string.IsNullOrEmpty(clientId)) throw new ArgumentNullException(nameof(clientId));
+				
+				return await ViverseAsyncHelperLib.ExecuteWithResult(
+					() => ViverseAsyncHelperLib.WrapAsyncWithPayload(
+						SSO_DetectAndHandleOAuthCallback, 
+						clientId, 
+						_ssoDomain.SSODomainString, 
+						cookieDomain
+					),
+					ViverseAsyncHelperLib.ParseJsonPayload<OAuthCallbackResult>,
+					"Detect OAuth Callback"
+				);
 			}
+
+			/// <summary>
+			/// Force reinitialize the client (for OAuth callback handling)
+			/// </summary>
+			public async Task<ViverseResult<bool>> ForceReinitializeClient(string clientId, string cookieDomain = null)
+			{
+				if (string.IsNullOrEmpty(clientId)) throw new ArgumentNullException(nameof(clientId));
+				
+				return await ViverseAsyncHelperLib.ExecuteWithBoolResult(
+					() => ViverseAsyncHelperLib.WrapAsyncWithPayload(
+						SSO_ForceReinitializeClient, 
+						clientId, 
+						_ssoDomain.SSODomainString, 
+						cookieDomain
+					),
+					"Force Reinitialize Client"
+				);
+			}
+
 		}
 	}
 }

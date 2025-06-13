@@ -12,9 +12,9 @@ using ViverseWebGLAPI;
 public class WebGLSettingsWindow : EditorWindow
 {
     // UI Elements
-    private Toggle _decompressionFallbackToggle;
     private Label _currentPlatformLabel;
     private VisualElement _container;
+    private Toggle _decompressionFallbackToggle; // Add reference to the decompression fallback toggle
 
     // Shader UI Elements
     private VisualElement _shaderContainer;
@@ -45,6 +45,13 @@ public class WebGLSettingsWindow : EditorWindow
     private Label _serverScriptStatusLabel;
     private Button _copyServerScriptButton;
     private Toggle _serverRunningToggle;
+    // Custom server script toggle
+    private Toggle _allowCustomServerScriptToggle;
+    private EditorPrefsBoolValue _allowCustomServerScriptPreference = new EditorPrefsBoolValue("ALLOW_CUSTOM_JS_SERVER");
+    
+    // Auto-zip build toggle
+    private Toggle _autoZipBuildToggle;
+    private EditorPrefsBoolValue _autoZipBuildPreference = new EditorPrefsBoolValue("AUTO_ZIP_BUILD_ENABLED");
 
     // Manager instances
     private WebGLShaderManager _shaderManager;
@@ -113,10 +120,53 @@ public class WebGLSettingsWindow : EditorWindow
 
         // Get references to UI elements
         _container = rootVisualElement.Q<VisualElement>("container");
-        _decompressionFallbackToggle = rootVisualElement.Q<Toggle>("decompressionFallbackToggle");
-		_decompressionFallbackToggle.tooltip = "Disable decompression fallback and set compression format to None to ensure smooth running in some browsers (recommended)";
         _currentPlatformLabel = rootVisualElement.Q<Label>("currentPlatformLabel");
         Button setAllButton = rootVisualElement.Q<Button>("setAllButton");
+
+        // Get reference to the decompression fallback toggle
+        _decompressionFallbackToggle = rootVisualElement.Q<Toggle>("decompressionFallbackToggle");
+        // Set initial value based on current WebGL player settings
+        _decompressionFallbackToggle.value = !PlayerSettings.WebGL.decompressionFallback;
+
+        // Register value changed callback
+        _decompressionFallbackToggle.RegisterValueChangedCallback(evt => {
+            PlayerSettings.WebGL.decompressionFallback = !evt.newValue;
+            
+            // Set compression format based on fallback setting
+            if (evt.newValue) // Fallback disabled
+            {
+                PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Disabled;
+                Debug.Log("WebGL Decompression Fallback disabled - Compression format set to Disabled");
+            }
+            else // Fallback enabled
+            {
+                PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Brotli;
+                Debug.Log("WebGL Decompression Fallback enabled - Compression format set to Brotli");
+            }
+            
+            Debug.Log($"WebGL Decompression Fallback set to: {PlayerSettings.WebGL.decompressionFallback}");
+        });
+
+        // Get reference to the auto-zip build toggle
+        _autoZipBuildToggle = rootVisualElement.Q<Toggle>("autoZipBuildToggle");
+        // Set initial value from EditorPrefs
+        _autoZipBuildToggle.value = _autoZipBuildPreference.Value;
+
+        // Register value changed callback
+        _autoZipBuildToggle.RegisterValueChangedCallback(evt => {
+            _autoZipBuildPreference.Value = evt.newValue;
+            Debug.Log($"Auto-Zip Build setting changed to: {evt.newValue}");
+        });
+
+        // Ensure compression format is consistent with decompression fallback setting on initialization
+        bool currentFallbackSetting = PlayerSettings.WebGL.decompressionFallback;
+        WebGLCompressionFormat expectedFormat = currentFallbackSetting ? WebGLCompressionFormat.Brotli : WebGLCompressionFormat.Disabled;
+        
+        if (PlayerSettings.WebGL.compressionFormat != expectedFormat)
+        {
+            PlayerSettings.WebGL.compressionFormat = expectedFormat;
+            Debug.Log($"Synchronized compression format to match decompression fallback setting: {expectedFormat}");
+        }
 
         // Initialize VRM Package UI elements
         InitializeVRMPackageUI();
@@ -129,7 +179,6 @@ public class WebGLSettingsWindow : EditorWindow
 
         // Setup event handlers
         setAllButton.clicked += OnSetAllButtonClicked;
-        _decompressionFallbackToggle.RegisterValueChangedCallback(OnDecompressionFallbackChanged);
 
         // Register for editor updates
         EditorApplication.update += OnEditorUpdate;
@@ -452,16 +501,43 @@ public class WebGLSettingsWindow : EditorWindow
         step3Container.Add(_installNodeModulesButton);
         _serverSetupContainer.Add(step3Container);
 
-        // Step 4: Copy server script
+        // Step 4: Server Script management
         var step4Container = CreateStepContainer("4");
         _serverScriptStatusLabel = CreateStatusLabel("Server script not copied");
-        _copyServerScriptButton = CreateButton("Copy Server Script", () => {
-            _serverManager.CopyServerScript();
-            UpdateServerSetupUI();
-        });
+
+		// Add server script status label first
         step4Container.Add(_serverScriptStatusLabel);
+
+		// Create a foldout for advanced settings
+        Foldout advancedSettingsFoldout = new Foldout();
+        advancedSettingsFoldout.text = "Advanced Settings";
+        advancedSettingsFoldout.value = false; // Collapsed by default
+        advancedSettingsFoldout.AddToClassList("settings-foldout");
+
+		// Add custom server script toggle inside the foldout
+        _allowCustomServerScriptToggle = new Toggle("Allow Custom Server Script");
+        _allowCustomServerScriptToggle.AddToClassList("settings-toggle");
+        _allowCustomServerScriptToggle.tooltip = "When enabled, allows you to use a custom server.js script instead of the one provided with the editor";
+		// Set initial value from EditorPrefs
+        _allowCustomServerScriptToggle.value = _allowCustomServerScriptPreference.Value;
+		// Register change callback
+        _allowCustomServerScriptToggle.RegisterValueChangedCallback(evt => {
+	        _allowCustomServerScriptPreference.Value = evt.newValue;
+	        UpdateServerSetupUI(); // Refresh UI when the setting changes
+        });
+        advancedSettingsFoldout.Add(_allowCustomServerScriptToggle);
+
+		// Add the foldout to the container
+        step4Container.Add(advancedSettingsFoldout);
+
+		// Add copy button last
+        _copyServerScriptButton = CreateButton("Copy Server Script", () => {
+	        _serverManager.CopyServerScript();
+	        UpdateServerSetupUI();
+        });
         step4Container.Add(_copyServerScriptButton);
         _serverSetupContainer.Add(step4Container);
+
 
         // Step 5: Start/Stop server
         var step5Container = CreateStepContainer("5");
@@ -693,37 +769,82 @@ public class WebGLSettingsWindow : EditorWindow
             _installNodeModulesButton.style.display = DisplayStyle.Flex;
         }
 
-        // Update Step 4: Server script
+        // Update Step 4: Server script management
         _copyServerScriptButton.SetEnabled(status.NodeModulesInstalled);
-        if (status.ServerScriptCopied)
+
+		// Check server script status considering the custom script toggle
+        bool scriptExists = NodeServerManager.ServerScriptExists;
+        bool scriptMatches = NodeServerManager.ServerScriptIsTheSameAsOneInEditor();
+        bool allowCustomScript = _allowCustomServerScriptToggle.value;
+
+        if (allowCustomScript)
         {
-            _serverScriptStatusLabel.text = "✓ Server script copied";
-            _serverScriptStatusLabel.style.color = new Color(0, 0.7f, 0);
-            _copyServerScriptButton.style.display = DisplayStyle.None;
+	        // When custom script is allowed, we only care if the script exists, not if it matches
+	        if (scriptExists)
+	        {
+		        _serverScriptStatusLabel.text = "✓ Custom server script present (modifications allowed)";
+		        _serverScriptStatusLabel.style.color = new Color(0, 0.7f, 0);
+		        _copyServerScriptButton.style.display = DisplayStyle.None;
+	        }
+	        else
+	        {
+		        _serverScriptStatusLabel.text = "⚠ Server script not copied";
+		        _serverScriptStatusLabel.style.color = new Color(0.7f, 0.5f, 0);
+		        _copyServerScriptButton.style.display = DisplayStyle.Flex;
+	        }
         }
         else
         {
-            _serverScriptStatusLabel.text = "⚠ Server script not copied";
-            _serverScriptStatusLabel.style.color = new Color(0.7f, 0.5f, 0);
-            _copyServerScriptButton.style.display = DisplayStyle.Flex;
+	        // Normal behavior - script must exist and match the editor version
+	        if (scriptMatches)
+	        {
+		        _serverScriptStatusLabel.text = "✓ Server script copied";
+		        _serverScriptStatusLabel.style.color = new Color(0, 0.7f, 0);
+		        _copyServerScriptButton.style.display = DisplayStyle.None;
+	        }
+	        else
+	        {
+		        if (scriptExists && !scriptMatches)
+		        {
+			        _serverScriptStatusLabel.text = "⚠ Server script differs from editor version";
+		        }
+		        else
+		        {
+			        _serverScriptStatusLabel.text = "⚠ Server script not copied";
+		        }
+		        _serverScriptStatusLabel.style.color = new Color(0.7f, 0.5f, 0);
+		        _copyServerScriptButton.style.display = DisplayStyle.Flex;
+	        }
         }
 
-        // Update Step 5: Server toggle
-        _serverRunningToggle.SetEnabled(status.ServerScriptCopied);
+
+        // Step 5: Start/Stop server
+		// Enable the server toggle if the script exists, regardless of whether it matches the editor version
+		// when custom scripts are allowed
+        bool canRunServer = allowCustomScript
+	        ? scriptExists
+	        : status.ServerScriptCopied;
+
+        _serverRunningToggle.SetEnabled(canRunServer);
         _serverRunningToggle.SetValueWithoutNotify(status.ServerRunning);
     }
 
     private void UpdateUI()
     {
-        if (_container == null || _currentPlatformLabel == null || _decompressionFallbackToggle == null)
+        if (_container == null || _currentPlatformLabel == null)
             return;
 
         bool isWebGLPlatform = EditorUserBuildSettings.activeBuildTarget == BuildTarget.WebGL;
 
         _currentPlatformLabel.text = $"Current Platform: {EditorUserBuildSettings.activeBuildTarget}";
-        _decompressionFallbackToggle.SetValueWithoutNotify(!PlayerSettings.WebGL.decompressionFallback);
-        _container.style.opacity = isWebGLPlatform ? 1f : 0.5f;
+
+        // Update decompression fallback toggle based on current WebGL settings
         _decompressionFallbackToggle.SetEnabled(isWebGLPlatform);
+        _decompressionFallbackToggle.SetValueWithoutNotify(!PlayerSettings.WebGL.decompressionFallback);
+        
+        // Debug log current WebGL compression settings (commented out to reduce log spam)
+        //Debug.Log($"Current WebGL Settings - Decompression Fallback: {PlayerSettings.WebGL.decompressionFallback}, " +
+        //          $"Compression Format: {PlayerSettings.WebGL.compressionFormat}");
 
         if (isWebGLPlatform)
         {
@@ -778,11 +899,6 @@ public class WebGLSettingsWindow : EditorWindow
         EditorApplication.update -= OnEditorUpdate;
         EditorUserBuildSettings.activeBuildTargetChanged -= OnBuildTargetChanged;
         AssemblyReloadEvents.afterAssemblyReload -= OnAfterAssemblyReload;
-
-        if (_decompressionFallbackToggle != null)
-        {
-            _decompressionFallbackToggle.UnregisterValueChangedCallback(OnDecompressionFallbackChanged);
-        }
     }
 
     private void OnEditorUpdate()
@@ -799,28 +915,6 @@ public class WebGLSettingsWindow : EditorWindow
         UpdateUI();
     }
 
-    private void OnDecompressionFallbackChanged(ChangeEvent<bool> evt)
-    {
-        if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.WebGL)
-        {
-            _decompressionFallbackToggle.SetValueWithoutNotify(!evt.newValue);
-            Debug.LogWarning("Please switch to WebGL platform before changing WebGL settings.");
-            EditorUtility.DisplayDialog("Invalid Platform",
-                "Please switch to WebGL platform before changing WebGL settings.", "OK");
-            return;
-        }
-
-        PlayerSettings.WebGL.decompressionFallback = !evt.newValue;
-
-		// Also set the compression format to None when decompression fallback is disabled
-		if (evt.newValue) // If toggle is checked (disable decompression fallback)
-		{
-			PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Disabled;
-		}
-
-        AssetDatabase.SaveAssets();
-    }
-
     private void OnSetAllButtonClicked()
     {
         if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.WebGL)
@@ -830,13 +924,22 @@ public class WebGLSettingsWindow : EditorWindow
             return;
         }
 
+        // Apply decompression fallback setting
         PlayerSettings.WebGL.decompressionFallback = !_decompressionFallbackToggle.value;
 
-		// Also set the compression format to None when decompression fallback is disabled
-		if (_decompressionFallbackToggle.value) // If toggle is checked (disable decompression fallback)
-		{
-			PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Disabled;
-		}
+        // Set compression format based on fallback setting
+        if (_decompressionFallbackToggle.value) // Fallback disabled
+        {
+            PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Disabled;
+            Debug.Log("Applied WebGL Decompression Fallback disabled - Compression format set to Disabled");
+        }
+        else // Fallback enabled
+        {
+            PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Brotli;
+            Debug.Log("Applied WebGL Decompression Fallback enabled - Compression format set to Brotli");
+        }
+
+        Debug.Log($"Applied WebGL Decompression Fallback setting: {PlayerSettings.WebGL.decompressionFallback}");
 
         if (_shaderManager != null)
         {

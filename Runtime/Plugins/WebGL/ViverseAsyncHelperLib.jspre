@@ -115,5 +115,145 @@
 
             this.safeCallback(callback, errorData);
         }
+    },
+
+    // ====================================================
+    // NETWORKING EVENT SUPPORT (Unified with async pattern)
+    // ====================================================
+
+    generateTaskId: function() {
+        return 'task_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    },
+
+    createEventData: function(eventCategory, eventType, payload) {
+        return {
+            EventCategory: eventCategory, // 1 = Matchmaking, 2 = Multiplayer
+            EventType: eventType,
+            EventData: payload ? JSON.stringify(payload) : '{}',
+            Timestamp: Date.now()
+        };
+    },
+
+    wrapEventCallback: function(taskId, eventData, callback) {
+        try {
+            // Use standard createReturnData format for events
+            const returnData = this.createReturnData(
+                taskId,
+                this.ReturnCode.SUCCESS,
+                "Event received successfully",
+                JSON.stringify(eventData)
+            );
+
+            this.safeCallback(callback, returnData);
+            console.log('Event dispatched successfully with taskId:', taskId);
+        } catch (e) {
+            console.error("Error in event callback:", e);
+            
+            const errorData = this.createReturnData(
+                taskId,
+                this.ReturnCode.ERROR_EXCEPTION,
+                `Event dispatch error: ${e.message}`
+            );
+            
+            this.safeCallback(callback, errorData);
+        }
+    },
+
+    dispatchMatchmakingEvent: function(eventType, payload, callback, taskId = null) {
+        try {
+            // Generate taskId if not provided
+            if (!taskId) {
+                taskId = this.generateTaskId();
+            }
+
+            // Validate event type using Module.ViverseCore enum helpers
+            if (Module.ViverseCore.MatchmakingEventType && 
+                !Module.ViverseCore.MatchmakingEventType.isValidEventType(eventType)) {
+                const errorData = this.createReturnData(
+                    taskId,
+                    this.ReturnCode.ERROR_INVALID_PARAMETER,
+                    `Invalid matchmaking event type: ${eventType}`
+                );
+                this.safeCallback(callback, errorData);
+                return taskId;
+            }
+
+            // Create unified event data
+            const eventData = this.createEventData(1, eventType, payload); // 1 = Matchmaking category
+            
+            // Use standard callback pattern
+            this.wrapEventCallback(taskId, eventData, callback);
+            
+            return taskId;
+        } catch (e) {
+            console.error('Error dispatching matchmaking event:', e);
+            
+            const errorData = this.createReturnData(
+                taskId || this.generateTaskId(),
+                this.ReturnCode.ERROR_EXCEPTION,
+                `Exception dispatching matchmaking event: ${e.message}`
+            );
+            this.safeCallback(callback, errorData);
+            return taskId;
+        }
+    },
+
+    dispatchMultiplayerEvent: function(eventType, payload, callback, taskId = null) {
+        try {
+            // Generate taskId if not provided
+            if (!taskId) {
+                taskId = this.generateTaskId();
+            }
+
+            // Validate event type using Module.ViverseCore enum helpers
+            if (Module.ViverseCore.MultiplayerEventType && 
+                !Module.ViverseCore.MultiplayerEventType.isValidEventType(eventType)) {
+                const errorData = this.createReturnData(
+                    taskId,
+                    this.ReturnCode.ERROR_INVALID_PARAMETER,
+                    `Invalid multiplayer event type: ${eventType}`
+                );
+                this.safeCallback(callback, errorData);
+                return taskId;
+            }
+
+            // Create unified event data
+            const eventData = this.createEventData(2, eventType, payload); // 2 = Multiplayer category
+            
+            // Use standard callback pattern
+            this.wrapEventCallback(taskId, eventData, callback);
+            
+            return taskId;
+        } catch (e) {
+            console.error('Error dispatching multiplayer event:', e);
+            
+            const errorData = this.createReturnData(
+                taskId || this.generateTaskId(),
+                this.ReturnCode.ERROR_EXCEPTION,
+                `Exception dispatching multiplayer event: ${e.message}`
+            );
+            this.safeCallback(callback, errorData);
+            return taskId;
+        }
+    },
+
+    normalizeEventPayload: function(payload) {
+        if (!payload) return null;
+
+        if (typeof payload === 'string') {
+            try {
+                return JSON.parse(payload);
+            } catch (e) {
+                console.warn('Failed to parse payload as JSON, treating as string:', payload);
+                return { data: payload };
+            }
+        }
+
+        if (typeof payload === 'object') {
+            return payload;
+        }
+
+        // Convert primitives to object form
+        return { value: payload };
     }
 };

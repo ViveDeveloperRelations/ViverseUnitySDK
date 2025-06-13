@@ -58,9 +58,10 @@ namespace ViverseWebGLAPI
 				var result = await CallNativeViverseFunction(Leaderboard_Initialize);
 				if (result.ViverseSDKReturnCode != ViverseSDKReturnCode.Success)
 				{
-					Debug.LogWarning(
-						$"Failed to initialize leaderboard: {ReturnCodeHelper.GetErrorMessage(result.ViverseSDKReturnCode)}");
-					return ViverseResult<bool>.Failure(result);
+					// ✅ Use safe logging extension for comprehensive error reporting
+					var failureResult = ViverseResult<bool>.Failure(result);
+					failureResult.LogError("Initialize Leaderboard");
+					return failureResult;
 				}
 
 				return ViverseResult<bool>.Success(true, result);
@@ -77,9 +78,10 @@ namespace ViverseWebGLAPI
 				var result = await CallNativeViverseFunction(UploadWrapper);
 				if (result.ViverseSDKReturnCode != ViverseSDKReturnCode.Success)
 				{
-					Debug.LogWarning(
-						$"Failed to upload score: {ReturnCodeHelper.GetErrorMessage(result.ViverseSDKReturnCode)}");
-					return ViverseResult<LeaderboardResult>.Failure(result);
+					// ✅ Use safe logging extension for comprehensive error reporting
+					var failureResult = ViverseResult<LeaderboardResult>.Failure(result);
+					failureResult.LogError("Upload Leaderboard Score");
+					return failureResult;
 				}
 
 				try
@@ -108,10 +110,10 @@ namespace ViverseWebGLAPI
 				ViverseSDKReturn result = await CallNativeViverseFunction(GetLeaderboardNativeFunctionWrapped);
 				if (result.ViverseSDKReturnCode != ViverseSDKReturnCode.Success)
 				{
-					Debug.LogWarning($"Failed to upload score ViverseSDK. Error code: {result.ReturnCode} info:" +
-					                 ReturnCodeHelper.GetErrorMessage(result.ViverseSDKReturnCode) + " payload:" +
-					                 JsonUtility.ToJson(result));
-					return ViverseResult<LeaderboardResult>.Failure(result);
+					// ✅ Use safe logging extension for comprehensive error reporting
+					var failureResult = ViverseResult<LeaderboardResult>.Failure(result);
+					failureResult.LogError("Get Leaderboard Scores");
+					return failureResult;
 				}
 
 				try
@@ -165,8 +167,10 @@ namespace ViverseWebGLAPI
 			    ViverseSDKReturn result = await CallNativeViverseFunction(UploadWrapper);
 			    if (result.ViverseSDKReturnCode != ViverseSDKReturnCode.Success)
 			    {
-			        Debug.LogWarning($"Failed to upload achievements: {ReturnCodeHelper.GetErrorMessage(result.ViverseSDKReturnCode)}");
-			        return ViverseResult<AchievementUploadResult>.Failure(result);
+			        // ✅ Use safe logging extension for comprehensive error reporting
+			        var failureResult = ViverseResult<AchievementUploadResult>.Failure(result);
+			        failureResult.LogError("Upload User Achievement");
+			        return failureResult;
 			    }
 
 			    try
@@ -206,8 +210,10 @@ namespace ViverseWebGLAPI
 			    ViverseSDKReturn result = await CallNativeViverseFunction(GetAchievementWrapper);
 			    if (result.ViverseSDKReturnCode != ViverseSDKReturnCode.Success)
 			    {
-			        Debug.LogWarning($"Failed to get user achievements: {ReturnCodeHelper.GetErrorMessage(result.ViverseSDKReturnCode)}");
-			        return ViverseResult<UserAchievementResult>.Failure(result);
+			        // ✅ Use safe logging extension for comprehensive error reporting
+			        var failureResult = ViverseResult<UserAchievementResult>.Failure(result);
+			        failureResult.LogError("Get User Achievement");
+			        return failureResult;
 			    }
 
 			    try

@@ -34,6 +34,10 @@
 				ViverseSDKReturnCode.ErrorNotSupported => "Operation not supported",
 				ViverseSDKReturnCode.ErrorModuleNotLoaded => "Module not loaded",
 				ViverseSDKReturnCode.ErrorSdkNotLoaded => "SDK not loaded",
+				ViverseSDKReturnCode.ErrorSdkNotInitialized => "SDK not initialized",
+				ViverseSDKReturnCode.ErrorUnityNotInitialized => "Unity not initialized",
+				ViverseSDKReturnCode.ErrorInvalidState => "Invalid state for operation",
+				ViverseSDKReturnCode.ErrorParseJson => "JSON parsing failed",
 				ViverseSDKReturnCode.ErrorUnknown => "Unknown error occurred",
 				ViverseSDKReturnCode.ErrorException => "Exception occurred",
 				_ => $"Undefined error code: {code}"

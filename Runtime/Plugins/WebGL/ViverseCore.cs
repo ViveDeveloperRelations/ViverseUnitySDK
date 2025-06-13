@@ -22,9 +22,11 @@ namespace ViverseWebGLAPI
 		public SSOServiceClass SSOService { get; private set; }
 		public LeaderboardServiceClass LeaderboardService { get; private set; }
 		public AvatarServiceClass AvatarService { get; private set; }
-
-		private static Dictionary<int, TaskCompletionSource<ViverseSDKReturn>> s_pendingTasks = new();
-		private static int s_taskId = 0;
+		
+		// Multiplayer Services (v1.2.9)
+		public PlayServiceClass PlayService { get; private set; }
+		public MatchmakingServiceClass MatchmakingService { get; private set; }
+		public MultiplayerServiceClass MultiplayerService { get; private set; }
 
 		private SemaphoreSlim
 			m_initializeSemaphore =
@@ -33,65 +35,32 @@ namespace ViverseWebGLAPI
 		public bool IsInitialized { get; private set; }
 
 		/// <summary>
-		/// Handle internal callbacks from the viverse api
+		/// Helper function to call a native function using the centralized async helper library.
 		/// </summary>
-		/// <param name="result">JSON formatted ViverseSDKReturn class object</param>
-		[MonoPInvokeCallback(typeof(Action<string>))]
-		public static void OnTaskCompleteViverse(string result)
+		/// <param name="nativeFunction">Native function to call that will have the taskid (int) and callback (Action<string>) parameters</param>
+		private static Task<ViverseSDKReturn> CallNativeViverseFunction(Action<int, Action<string>> nativeFunction)
 		{
-			if (string.IsNullOrEmpty(result))
-			{
-				Debug.LogError("Received null or empty result from viverse sdk - this is a bug");
-				return;
-			}
-
-			try
-			{
-				ViverseSDKReturn sdkReturn = JsonUtility.FromJson<ViverseSDKReturn>(result);
-				int taskId = sdkReturn.TaskId;
-
-				if (!s_pendingTasks.ContainsKey(taskId))
-				{
-					Debug.LogError($"TaskId {taskId} not found in pending tasks - this is a bug - json received :{result}");
-					return;
-				}
-
-				s_pendingTasks[taskId].SetResult(sdkReturn);
-			}
-			catch (Exception e)
-			{
-				Debug.LogError("Result was not valid json - json received :"+result);
-				Debug.LogException(e);
-			}
+			return ViverseAsyncHelperLib.WrapAsyncWithPayload(nativeFunction);
 		}
 
 		/// <summary>
-		/// Helper function to call a native function, and simulate a task completion through the callback from javascript
+		/// Reset all multiplayer services (called during logout or cleanup)
 		/// </summary>
-		/// <param name="nativeFunction">Native function to call that will have the taskid (int) and callback (Action<string>) parameters, where the callback currently should be returning a json formatted ViverseSDKReturn from javascript</param>
-		private static Task<ViverseSDKReturn> CallNativeViverseFunction(Action<int, Action<string>> nativeFunction)
+		internal void ResetMultiplayerServices()
 		{
-			TaskCompletionSource<ViverseSDKReturn> tcs = new();
-			s_taskId++;
-			s_pendingTasks.Add(s_taskId, tcs);
 			try
 			{
-				nativeFunction(s_taskId, OnTaskCompleteViverse);
-				return tcs.Task;
+				PlayService?.Reset();
+				MatchmakingService?.Reset();
+				MultiplayerService?.Reset();
+				ViverseEventDispatcher.Reset();
+				CleanupActiveRooms();
+				ViverseLogger.LogInfo(ViverseLogger.Categories.CORE, "All multiplayer services reset");
 			}
 			catch (Exception e)
 			{
-				Debug.LogError("Exception when calling native function");
-				Debug.LogException(e);
-				tcs.SetResult(new ViverseSDKReturn
-				{
-					TaskId = s_taskId,
-					ReturnCode = (int)ViverseSDKReturnCode.ErrorException,
-					Message = e.Message
-				});
+				ViverseLogger.LogException(ViverseLogger.Categories.CORE, e, "Exception during multiplayer services reset");
 			}
-
-			return tcs.Task;
 		}
 
 		public async Task<ViverseResult<bool>> Initialize(HostConfig hostConfig, CancellationToken ct)
@@ -142,6 +111,15 @@ namespace ViverseWebGLAPI
 				SSOService = new SSOServiceClass(hostConfig.SSODomain);
 				LeaderboardService = new LeaderboardServiceClass();
 				AvatarService = new AvatarServiceClass(hostConfig.AvatarHost);
+				
+				// Initialize multiplayer services (v1.2.9)
+				PlayService = new PlayServiceClass();
+				MatchmakingService = new MatchmakingServiceClass();
+				MultiplayerService = new MultiplayerServiceClass();
+				
+				// Initialize the global event dispatcher for JavaScript->C# event bridging
+				ViverseEventDispatcher.Initialize(this);
+				
 				IsInitialized = true;
 
 				return ViverseResult<bool>.Success(true, result);
@@ -149,6 +127,98 @@ namespace ViverseWebGLAPI
 			finally
 			{
 				m_initializeSemaphore.Release();
+			}
+		}
+
+		// Room Management for Room-Based Event System
+		private static readonly Dictionary<string, ViverseRoom> s_activeRooms = new();
+
+		/// <summary>
+		/// Create a new room-based multiplayer manager for the specified app.
+		/// This creates a fresh room manager instance that follows the proper architecture:
+		/// PlayService → MatchmakingService → Room Operations → MultiplayerService
+		/// </summary>
+		/// <param name="appId">The application ID for multiplayer context</param>
+		/// <returns>ViverseRoom instance for room operations and typed event subscriptions</returns>
+		public ViverseRoom CreateRoomManager(string appId)
+		{
+			if (string.IsNullOrEmpty(appId))
+				throw new ArgumentException("App ID cannot be null or empty", nameof(appId));
+
+			if (!IsInitialized)
+			{
+				ViverseLogger.LogError(ViverseLogger.Categories.CORE, "ViverseCore not initialized. Call Initialize() first.");
+				return null;
+			}
+
+			// Create new room manager - each app can have multiple room managers
+			var roomManagerKey = $"{appId}_{Guid.NewGuid():N}";
+			var newRoom = new ViverseRoom(this, appId, roomManagerKey);
+			s_activeRooms[roomManagerKey] = newRoom;
+
+			ViverseLogger.LogInfo(ViverseLogger.Categories.CORE, "Created new room manager for app: {0} (key: {1})", appId, roomManagerKey);
+			return newRoom;
+		}
+
+
+		/// <summary>
+		/// Remove a room from active management (called when room is disposed)
+		/// </summary>
+		/// <param name="roomManagerKey">The room manager key to remove</param>
+		internal static void RemoveRoom(string roomManagerKey)
+		{
+			if (string.IsNullOrEmpty(roomManagerKey))
+				return;
+
+			if (s_activeRooms.Remove(roomManagerKey))
+			{
+				ViverseLogger.LogInfo(ViverseLogger.Categories.CORE, "Removed room manager: {0}", roomManagerKey);
+			}
+		}
+
+		/// <summary>
+		/// Get all active room IDs (for debugging)
+		/// </summary>
+		/// <returns>Array of active room IDs</returns>
+		public string[] GetActiveRoomIds()
+		{
+			var roomIds = new string[s_activeRooms.Count];
+			s_activeRooms.Keys.CopyTo(roomIds, 0);
+			return roomIds;
+		}
+
+		/// <summary>
+		/// Clean up all active rooms (called during reset/logout)
+		/// </summary>
+		private void CleanupActiveRooms()
+		{
+			try
+			{
+				// Create copy to avoid modification during iteration
+				var roomIdsCopy = new string[s_activeRooms.Count];
+				s_activeRooms.Keys.CopyTo(roomIdsCopy, 0);
+
+				foreach (var roomId in roomIdsCopy)
+				{
+					if (s_activeRooms.TryGetValue(roomId, out var room))
+					{
+						try
+						{
+							room.Dispose();
+						}
+						catch (Exception e)
+						{
+							ViverseLogger.LogWarning(ViverseLogger.Categories.CORE, "Exception disposing room {0}: {1}", roomId, e.Message);
+						}
+					}
+				}
+
+				s_activeRooms.Clear();
+				ViverseLogger.LogInfo(ViverseLogger.Categories.CORE, "All active rooms cleaned up");
+			}
+			catch (Exception e)
+			{
+				ViverseLogger.LogException(ViverseLogger.Categories.CORE, e, "Exception during room cleanup");
 			}
 		}
 	}

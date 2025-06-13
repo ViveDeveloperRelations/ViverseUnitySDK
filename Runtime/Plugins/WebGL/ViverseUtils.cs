@@ -7,6 +7,19 @@ namespace ViverseWebGLAPI
 	{
 		[DllImport("__Internal")]
 		private static extern ViverseSDKReturnCode Utils_Free_String(IntPtr ptr);
+		
+		/// <summary>
+		/// Converts an IntPtr to a string (for compatibility with legacy code)
+		/// </summary>
+		/// <param name="ptr">IntPtr to convert</param>
+		/// <returns>String representation or null if invalid</returns>
+		public static string IntPtrToString(IntPtr ptr)
+		{
+			if (ptr == IntPtr.Zero || ptr.ToInt32() < 0)
+				return null;
+				
+			return Marshal.PtrToStringAnsi(ptr);
+		}
 
 		public static class Cookie
 		{

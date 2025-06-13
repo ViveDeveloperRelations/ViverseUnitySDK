@@ -175,7 +175,7 @@
             cookieDomain: ''
         };
 
-        const SDK_URL = 'https://www.viverse.com/static-assets/viverse-sdk/1.2.3/viverse-sdk.umd.js';
+        const SDK_URL = 'https://www.viverse.com/static-assets/viverse-sdk/1.2.9/viverse-sdk.umd.js';
 
         // Global clients
         let avatarClient = null;
@@ -251,9 +251,7 @@
                 gameDashboardClient = new globalThis.viverse.gameDashboard({
                     baseURL: 'https://www.viveport.com/',
                     communityBaseURL: 'https://www.viverse.com/',
-                    token: {
-                        accessToken: token
-                    }
+                    token: token  // v1.2.9 expects string, not object
                 });
                 console.log('Game Dashboard client initialized');
                 return true;
@@ -282,9 +280,8 @@
                 const pathname = window.location.pathname;
                 const redirectUrl = `${protocol}//${hostname}${port}${pathname}`;
 
-                await globalThis.viverseClient.loginWithRedirect({
-                    redirectionUrl: redirectUrl
-                });
+                // v1.2.9 uses loginWithWorlds instead of loginWithRedirect
+                await globalThis.viverseClient.loginWithWorlds();
             } catch (error) {
                 document.getElementById('loginResult').textContent =
                     `Error during login process: ${error.message}`;
@@ -461,7 +458,8 @@
 
                 if (globalThis.viverseClient) {
                     try {
-                        const result = await globalThis.viverseClient.handleRedirectCallback();
+                        // v1.2.9 - check authentication status instead of handling callback
+                        const result = await globalThis.viverseClient.checkAuth();
                         document.getElementById('loginResult').textContent =
                             JSON.stringify(result, null, 2);
 

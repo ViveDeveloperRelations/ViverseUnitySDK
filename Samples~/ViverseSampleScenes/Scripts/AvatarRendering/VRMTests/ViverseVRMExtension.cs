@@ -193,17 +193,17 @@ public class ViverseVRMExtension : MonoBehaviour
 	        if (!Application.isEditor)
 	        {
 		        // Load personal avatars
-		        ViverseResult<AvatarListWrapper> personalResult = await mainUI.GetViverseCore().AvatarService.GetAvatarList();
-		        if (personalResult.IsSuccess && personalResult.Data.avatars != null)
+		        ViverseResult<Avatar[]> personalResult = await mainUI.GetViverseCore().AvatarService.GetAvatarList();
+		        if (personalResult.IsSuccess && personalResult.Data != null)
 		        {
-			        allAvatars.AddRange(personalResult.Data.avatars);
+			        allAvatars.AddRange(personalResult.Data);
 		        }
 
 		        // Load public avatars
-		        ViverseResult<AvatarListWrapper> publicResult = await mainUI.GetViverseCore().AvatarService.GetPublicAvatarList();
-		        if (publicResult.IsSuccess && publicResult.Data.avatars != null)
+		        ViverseResult<Avatar[]> publicResult = await mainUI.GetViverseCore().AvatarService.GetPublicAvatarList();
+		        if (publicResult.IsSuccess && publicResult.Data != null)
 		        {
-			        allAvatars.AddRange(publicResult.Data.avatars);
+			        allAvatars.AddRange(publicResult.Data);
 		        }
 	        }
 

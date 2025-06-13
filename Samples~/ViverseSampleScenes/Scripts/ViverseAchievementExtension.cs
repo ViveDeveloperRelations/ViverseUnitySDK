@@ -273,6 +273,8 @@ public class ViverseAchievementExtension : MonoBehaviour
             }
             else
             {
+                // ✅ Use safe logging extension for comprehensive error reporting
+                result.LogError("Get User Achievement");
                 _parent.ShowError($"Failed to get achievements: {result.ErrorMessage}");
             }
         }
@@ -354,6 +356,8 @@ public class ViverseAchievementExtension : MonoBehaviour
             }
             else
             {
+                // ✅ Use safe logging extension for comprehensive error reporting
+                result.LogError("Upload User Achievement");
                 _parent.ShowError($"Failed to unlock achievement: {result.ErrorMessage}");
             }
         }

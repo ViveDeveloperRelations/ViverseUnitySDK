@@ -10,7 +10,8 @@
             <!-- WebGL Specific Settings -->
             <ui:VisualElement class="settings-card">
                 <ui:Label text="WebGL Player Settings" class="card-header" />
-                <ui:Toggle label="Disable Decompression Fallback" name="decompressionFallbackToggle" class="settings-toggle" tooltip="Disable decompression fallback to ensure smooth running in some browsers (recommended)" />
+                <ui:Toggle label="Disable Decompression Fallback" name="decompressionFallbackToggle" class="settings-toggle" tooltip="Disable decompression fallback to ensure creation of compressed files" value="true" />
+                <ui:Toggle label="Auto-Zip Build After Completion" name="autoZipBuildToggle" class="settings-toggle" tooltip="Automatically create a ZIP file of the build directory after WebGL build completes" value="false" />
 
                 <!-- Apply Button -->
                 <ui:Button text="Apply WebGL Settings" name="setAllButton" class="apply-button" />

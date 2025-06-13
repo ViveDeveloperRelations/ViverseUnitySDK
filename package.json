@@ -1,7 +1,7 @@
 {
     "name": "com.viverse.unityviversewebglapi",
-    "version": "0.0.7",
-    "description": "Interact with the viverse platform through unity webgl export.",
+    "version": "0.0.8",
+    "description": "Unity wrapper for Viverse SDK v1.2.9 - Provides authentication, avatar management, and game dashboard features for WebGL builds",
     "displayName": "Viverse API For WebGL export",
     "author": {
         "name": "Viverse Limited",

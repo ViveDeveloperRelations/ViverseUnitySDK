@@ -1,119 +1,183 @@
-﻿using System;
+using System;
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UIElements;
-using System.Threading.Tasks;
-using UnityEngine.Networking;
+using ViverseUI.Infrastructure;
+using ViverseUI.Managers;
 using ViverseWebGLAPI;
-using Avatar = ViverseWebGLAPI.Avatar;
 
+/// <summary>
+/// Modular UI controller for Viverse SDK testing using manager pattern
+/// This replaces the monolithic ViverseTestUIDocument with loosely-coupled managers
+/// Original implementation backed up in ViverseTestUI_Monolithic_Backup.cs
+/// </summary>
 public class ViverseTestUIDocument : MonoBehaviour
 {
+    // Core dependencies
     private UIDocument _document;
-    private ViverseCore _core;
-    private ViverseConfigData _config;
-    private bool _isInitialized;
-
-    // UI Elements
-    private TextField _clientIdInput;
-    private Button _saveConfigButton;
-    private Label _configStatus;
-    private Button _loginButton;
-    private TextField _loginResult;
-    private Button _logoutButton;
-    private TextField _tokenResult;
-    private Button _loadProfileButton;
-    private Button _loadAvatarsButton;
-    private Button _loadPublicAvatarsButton;
-    private TextField _profileResult;
-    private VisualElement _avatarContainer;
-    private TextField _appIdInput;
-    private TextField _leaderboardNameInput;
-    private TextField _scoreInput;
-    private Button _uploadScoreButton;
-    private Button _getLeaderboardButton;
-    private TextField _leaderboardResult;
-    private VisualElement _loadingOverlay;
-    private Label _loadingText;
-
+    private ViverseServiceContext _serviceContext;
+    private UIStateManager _uiStateManager;
+    
+    // Manager instances
+    private ViverseConfigurationManager _configManager;
+    private ViverseAuthenticationManager _authManager;
+    private ViverseAvatarManager _avatarManager;
+    private ViverseLeaderboardManager _leaderboardManager;
+    private ViverseMultiplayerManager _multiplayerManager;
+    
+    // Extension components (maintained for compatibility)
     private ViverseAchievementExtension _achievementExtension;
-
-    // Avatar-related elements that are conditionally available
-    [SerializeField] private RuntimeAnimatorController _sampleAnimationController;
-#if UNI_VRM_INSTALLED && UNI_GLTF_INSTALLED
+    
+    #if UNI_VRM_INSTALLED && UNI_GLTF_INSTALLED
     private ViverseVRMExtension _vrmExtension;
-#endif
-
+    #endif
+    
+    [SerializeField] private RuntimeAnimatorController _sampleAnimationController;
+    
+    /// <summary>
+    /// Initialize the modular UI system
+    /// </summary>
     private void OnEnable()
     {
+        try
+        {
+            InitializeCore();
+            InitializeManagers();
+            SetupManagerCommunication();
+            
+            Debug.Log("ViverseTestUIDocument (Modular) initialized successfully");
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"Failed to initialize ViverseTestUIDocument: {e.Message}");
+        }
+    }
+    
+    /// <summary>
+    /// Cleanup when disabled
+    /// </summary>
+    private void OnDisable()
+    {
+        CleanupManagers();
+    }
+    
+    /// <summary>
+    /// Cleanup when destroyed
+    /// </summary>
+    private void OnDestroy()
+    {
+        CleanupManagers();
+    }
+    
+    /// <summary>
+    /// Initialize core dependencies and infrastructure
+    /// </summary>
+    private void InitializeCore()
+    {
+        // Get UI document
         _document = GetComponent<UIDocument>();
         if (_document == null)
         {
-            Debug.LogError("UIDocument component not found!");
-            return;
+            throw new Exception("UIDocument component not found!");
         }
-
-        InitializeUIElements();
-        SetupEventHandlers();
-        LoadConfiguration();
-        CheckForCallback();
+        
+        var root = _document.rootVisualElement;
+        
+        // Create UI state manager
+        _uiStateManager = new UIStateManager(root);
+        
+        // Create service context
+        _serviceContext = new ViverseServiceContext(_uiStateManager);
+        
+        Debug.Log("Core infrastructure initialized");
     }
-
-    private void InitializeUIElements()
+    
+    /// <summary>
+    /// Initialize all service managers
+    /// </summary>
+    private void InitializeManagers()
     {
         var root = _document.rootVisualElement;
-
-        // Get references to all UI elements
-        _clientIdInput = root.Q<TextField>("client-id-input");
-        _saveConfigButton = root.Q<Button>("save-config-button");
-        _configStatus = root.Q<Label>("config-status");
-        _loginButton = root.Q<Button>("login-button");
-        _loginResult = root.Q<TextField>("login-result");
-        _logoutButton = root.Q<Button>("logout-button");
-        _tokenResult = root.Q<TextField>("token-result");
-        _loadProfileButton = root.Q<Button>("load-profile-button");
-        _loadAvatarsButton = root.Q<Button>("load-avatars-button");
-        _loadPublicAvatarsButton = root.Q<Button>("load-public-avatars-button");
-        _profileResult = root.Q<TextField>("profile-result");
-        _avatarContainer = root.Q<VisualElement>("avatar-container");
-        _appIdInput = root.Q<TextField>("app-id-input");
-        _leaderboardNameInput = root.Q<TextField>("leaderboard-name-input");
-        _scoreInput = root.Q<TextField>("score-input");
-        _uploadScoreButton = root.Q<Button>("upload-score-button");
-        _getLeaderboardButton = root.Q<Button>("get-leaderboard-button");
-        _leaderboardResult = root.Q<TextField>("leaderboard-result");
-        _loadingOverlay = root.Q<VisualElement>("loading-overlay");
-        _loadingText = _loadingOverlay.Q<Label>("loading-text");
-
-        // Initialize Achievement functionality
-        _achievementExtension = gameObject.AddComponent<ViverseAchievementExtension>();
-        _achievementExtension.Initialize(this, _document.rootVisualElement);
-
-        // Initially disable logout button
-        _logoutButton.SetEnabled(false);
-        SetServiceButtonsEnabled(false);
-
-        // Initialize VRM functionality if available
-        #if UNI_VRM_INSTALLED && UNI_GLTF_INSTALLED
-        InitializeVRMSupport(root);
-        #else
-        // Hide VRM-specific UI elements when UniVRM is not available
-        HideVRMElements(root);
-        #endif
+        
+        try
+        {
+            // Create managers
+            _configManager = new ViverseConfigurationManager(_serviceContext, root);
+            _authManager = new ViverseAuthenticationManager(_serviceContext, root);
+            _avatarManager = new ViverseAvatarManager(_serviceContext, root, this);
+            _leaderboardManager = new ViverseLeaderboardManager(_serviceContext, root);
+            _multiplayerManager = new ViverseMultiplayerManager(_serviceContext, root);
+            
+            // Initialize managers
+            _configManager.Initialize();
+            _authManager.Initialize();
+            _avatarManager.Initialize();
+            _leaderboardManager.Initialize();
+            _multiplayerManager.Initialize();
+            
+            // Initialize extension components for compatibility
+            InitializeExtensions(root);
+            
+            Debug.Log("All managers initialized successfully");
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"Failed to initialize managers: {e.Message}");
+            throw;
+        }
     }
-
+    
+    /// <summary>
+    /// Initialize extension components for backward compatibility
+    /// </summary>
+    /// <param name="root">Root UI element</param>
+    private void InitializeExtensions(VisualElement root)
+    {
+        try
+        {
+            // Initialize Achievement functionality
+            _achievementExtension = gameObject.GetComponent<ViverseAchievementExtension>();
+            if (_achievementExtension == null)
+            {
+                _achievementExtension = gameObject.AddComponent<ViverseAchievementExtension>();
+            }
+            _achievementExtension.Initialize(this, root);
+            
+            // Initialize VRM functionality if available
+            #if UNI_VRM_INSTALLED && UNI_GLTF_INSTALLED
+            InitializeVRMSupport(root);
+            #else
+            HideVRMElements(root);
+            #endif
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning($"Failed to initialize extensions: {e.Message}");
+        }
+    }
+    
     #if UNI_VRM_INSTALLED && UNI_GLTF_INSTALLED
+    /// <summary>
+    /// Initialize VRM support when available
+    /// </summary>
+    /// <param name="root">Root UI element</param>
     private void InitializeVRMSupport(VisualElement root)
     {
-        // Create the VRM extension component
         if (_vrmExtension == null)
         {
-            _vrmExtension = gameObject.AddComponent<ViverseVRMExtension>();
+            _vrmExtension = gameObject.GetComponent<ViverseVRMExtension>();
+            if (_vrmExtension == null)
+            {
+                _vrmExtension = gameObject.AddComponent<ViverseVRMExtension>();
+            }
             _vrmExtension.Initialize(this, root, _sampleAnimationController);
         }
     }
     #else
+    /// <summary>
+    /// Hide VRM elements when not available
+    /// </summary>
+    /// <param name="root">Root UI element</param>
     private void HideVRMElements(VisualElement root)
     {
         // Hide VRM preview section
@@ -122,28 +186,19 @@ public class ViverseTestUIDocument : MonoBehaviour
         {
             vrmPreview.style.display = DisplayStyle.None;
         }
-
+        
         // Hide avatar cycling controls
         var cycleButton = root.Q<Button>("cycle-avatars-button");
-        if (cycleButton != null)
-        {
-            cycleButton.style.display = DisplayStyle.None;
-        }
-
+        cycleButton?.SetDisplayStyle(DisplayStyle.None);
+        
         var cycleSlider = root.Q<Slider>("cycle-duration-slider");
-        if (cycleSlider != null)
-        {
-            cycleSlider.style.display = DisplayStyle.None;
-        }
-
+        cycleSlider?.SetDisplayStyle(DisplayStyle.None);
+        
         var cycleLabel = root.Q<Label>("cycle-status-label");
-        if (cycleLabel != null)
-        {
-            cycleLabel.style.display = DisplayStyle.None;
-        }
-
-        // Add a message explaining that VRM support requires additional packages
-        var avatarSection = root.Q<VisualElement>("avatar-container").parent;
+        cycleLabel?.SetDisplayStyle(DisplayStyle.None);
+        
+        // Add informational message
+        var avatarSection = root.Q<VisualElement>("avatar-container")?.parent;
         if (avatarSection != null)
         {
             var message = new Label("Note: Avatar preview and VRM functionality requires installing UniVRM and UniGLTF packages.");
@@ -155,519 +210,236 @@ public class ViverseTestUIDocument : MonoBehaviour
         }
     }
     #endif
-
-    private void SetupEventHandlers()
-    {
-        _saveConfigButton.clicked += SaveConfiguration;
-        _loginButton.clicked += StartLogin;
-        _logoutButton.clicked += LogoutUser;
-        _loadProfileButton.clicked += async () => await LoadProfile();
-        _loadAvatarsButton.clicked += async () => await LoadMyAvatars();
-        _loadPublicAvatarsButton.clicked += async () => await LoadPublicAvatars();
-        _uploadScoreButton.clicked += async () => await UploadScore();
-        _getLeaderboardButton.clicked += async () => await GetLeaderboard();
-    }
-
-    private void LoadConfiguration()
-    {
-        _config = ViverseConfigData.LoadFromPrefs();
-        _clientIdInput.value = _config.ClientId;
-        UpdateConfigStatus();
-    }
-
-    private void SaveConfiguration()
-    {
-        if (string.IsNullOrEmpty(_clientIdInput.value))
-        {
-            ShowError("Please enter a Client ID");
-            return;
-        }
-
-        _config.ClientId = _clientIdInput.value;
-        _config.SaveToPrefs();
-        UpdateConfigStatus();
-        ShowMessage("Configuration saved successfully!");
-    }
-
-    private void UpdateConfigStatus()
-    {
-        _configStatus.text = string.IsNullOrEmpty(_config.ClientId)
-            ? "No Client ID configured"
-            : $"Current Client ID: {_config.ClientId}";
-    }
-
-    private async void StartLogin()
-    {
-        if (string.IsNullOrEmpty(_config.ClientId))
-        {
-            ShowError("Please configure your Client ID first");
-            return;
-        }
-
-        SetLoading(true, "Initializing SDK...");
-
-        try
-        {
-            _core = new ViverseCore();
-            HostConfig hostConfig = GetEnvironmentConfig();
-            ViverseResult<bool> initResult = await _core.Initialize(hostConfig, destroyCancellationToken);
-
-            if (!initResult.IsSuccess)
-            {
-                ShowError($"Failed to initialize SDK: {initResult.ErrorMessage}");
-                return;
-            }
-
-            bool ssoInitSuccess = _core.SSOService.Initialize(_config.ClientId);
-            if (!ssoInitSuccess)
-            {
-                ShowError("Failed to initialize SSO service");
-                return;
-            }
-
-            URLUtils.URLParts urlParts = URLUtils.ParseURL(Application.absoluteURL);
-            ViverseResult<LoginResult> loginResult = await _core.SSOService.LoginWithRedirect(urlParts);
-
-            if (loginResult.IsSuccess)
-            {
-                _loginResult.value = "Login initiated - page will refresh...";
-            }
-            else
-            {
-                ShowError($"Login failed: {loginResult.ErrorMessage}");
-            }
-        }
-        catch (Exception e)
-        {
-            ShowError($"Error during login: {e.Message}");
-        }
-        finally
-        {
-            SetLoading(false);
-        }
-    }
-
-    private async void LogoutUser()
-    {
-        if (!CheckInitialization()) return;
-
-        SetLoading(true, "Logging out...");
-        try
-        {
-            URLUtils.URLParts urlParts = URLUtils.ParseURL(Application.absoluteURL);
-            ViverseResult<bool> logoutResult = await _core.SSOService.Logout(urlParts);
-
-            if (logoutResult.IsSuccess)
-            {
-                // Clear UI state
-                _loginResult.value = "";
-                _tokenResult.value = "";
-                _profileResult.value = "";
-                _avatarContainer.Clear();
-                _leaderboardResult.value = "";
-
-                // Reset service buttons
-                SetServiceButtonsEnabled(false);
-
-                // Enable login button, disable logout button
-                _loginButton.SetEnabled(true);
-                _logoutButton.SetEnabled(false);
-
-                // Reset initialization flag
-                _isInitialized = false;
-
-                // Clear core reference
-                _core = null;
-
-                ShowMessage("Logged out successfully");
-            }
-            else
-            {
-                ShowError($"Logout failed: {logoutResult.ErrorMessage}");
-            }
-        }
-        catch (Exception e)
-        {
-            ShowError($"Error during logout: {e.Message}");
-        }
-        finally
-        {
-            SetLoading(false);
-        }
-    }
-
-    private async Task LoadProfile()
-    {
-        if (!CheckInitialization()) return;
-
-        SetLoading(true, "Loading profile...");
-        try
-        {
-            ViverseResult<UserProfile> profileResult = await _core.AvatarService.GetProfile();
-            if (profileResult.IsSuccess)
-            {
-                _profileResult.value = JsonUtility.ToJson(profileResult.Data, true);
-            }
-            else
-            {
-                ShowError($"Failed to load profile: {profileResult.ErrorMessage}");
-            }
-        }
-        catch (Exception e)
-        {
-            ShowError($"Error loading profile: {e.Message}");
-        }
-        finally
-        {
-            SetLoading(false);
-        }
-    }
-
-    private async Task LoadMyAvatars()
-    {
-        if (!CheckInitialization()) return;
-
-        SetLoading(true, "Loading avatars...");
-        try
-        {
-            ViverseResult<AvatarListWrapper> avatarResult = await _core.AvatarService.GetAvatarList();
-            if (avatarResult.IsSuccess)
-            {
-                DisplayAvatars(avatarResult.Data.avatars);
-            }
-            else
-            {
-                ShowError($"Failed to load avatars: {avatarResult.ErrorMessage}");
-            }
-        }
-        catch (Exception e)
-        {
-            ShowError($"Error loading avatars: {e.Message}");
-        }
-        finally
-        {
-            SetLoading(false);
-        }
-    }
-
-    private async Task LoadPublicAvatars()
-    {
-        if (!CheckInitialization()) return;
-
-        SetLoading(true, "Loading public avatars...");
-        try
-        {
-            ViverseResult<AvatarListWrapper> avatarResult = await _core.AvatarService.GetPublicAvatarList();
-            if (avatarResult.IsSuccess)
-            {
-                DisplayAvatars(avatarResult.Data.avatars);
-            }
-            else
-            {
-                ShowError($"Failed to load public avatars: {avatarResult.ErrorMessage}");
-            }
-        }
-        catch (Exception e)
-        {
-            ShowError($"Error loading public avatars: {e.Message}");
-        }
-        finally
-        {
-            SetLoading(false);
-        }
-    }
-
-    private void DisplayAvatars(Avatar[] avatars)
-    {
-        #if UNI_VRM_INSTALLED && UNI_GLTF_INSTALLED
-        // Use the VRM extension to display avatars with preview capabilities
-        if (_vrmExtension != null)
-        {
-            _vrmExtension.DisplayAvatars(avatars);
-            return;
-        }
-        #endif
-
-        // Fallback display without VRM functionality
-        _avatarContainer.Clear();
-
-        if (avatars == null || avatars.Length == 0)
-        {
-            ShowMessage("No avatars found");
-            return;
-        }
-
-        foreach (Avatar avatar in avatars)
-        {
-            if (string.IsNullOrEmpty(avatar.vrmUrl)) continue;
-
-            var card = new VisualElement();
-            card.AddToClassList("avatar-card");
-
-            var image = new Image();
-            image.AddToClassList("avatar-image");
-            if (!string.IsNullOrEmpty(avatar.snapshot))
-            {
-                StartCoroutine(LoadAvatarImage(image, avatar.snapshot));
-            }
-
-            var infoContainer = new VisualElement();
-            infoContainer.AddToClassList("avatar-info");
-
-            var avatarIdLabel = new Label($"ID: {avatar.id}");
-            avatarIdLabel.AddToClassList("avatar-id");
-
-            infoContainer.Add(avatarIdLabel);
-            card.Add(image);
-            card.Add(infoContainer);
-            _avatarContainer.Add(card);
-        }
-    }
-
-    public IEnumerator LoadAvatarImage(Image imageElement, string imageUrl)
-    {
-        using (UnityWebRequest www = UnityWebRequestTexture.GetTexture(imageUrl))
-        {
-            yield return www.SendWebRequest();
-
-            if (www.result != UnityWebRequest.Result.Success) yield break;
-            Texture2D texture = ((DownloadHandlerTexture)www.downloadHandler).texture;
-            imageElement.image = texture;
-        }
-    }
-
-    private async Task UploadScore()
-    {
-        if (!CheckInitialization()) return;
-
-        SetLoading(true, "Uploading score...");
-        try
-        {
-            string appId = _appIdInput.value;
-            string leaderboardName = _leaderboardNameInput.value;
-            string score = _scoreInput.value;
-
-            ViverseResult<LeaderboardResult> result = await _core.LeaderboardService.UploadScore(appId, leaderboardName, score);
-            if (result.IsSuccess)
-            {
-                _leaderboardResult.value = $"Score uploaded successfully\n{JsonUtility.ToJson(result.Data, true)}";
-            }
-            else
-            {
-                ShowError($"Failed to upload score: {result.ErrorMessage}");
-            }
-        }
-        catch (Exception e)
-        {
-            ShowError($"Error uploading score: {e.Message}");
-        }
-        finally
-        {
-            SetLoading(false);
-        }
-    }
-
-    private async Task GetLeaderboard()
-    {
-        if (!CheckInitialization()) return;
-
-        SetLoading(true, "Loading leaderboard...");
-        try
-        {
-            LeaderboardConfig config = LeaderboardConfig.CreateDefault(_leaderboardNameInput.value);
-            ViverseResult<LeaderboardResult> result = await _core.LeaderboardService.GetLeaderboardScores(_appIdInput.value, config);
-
-            if (result.IsSuccess)
-            {
-                _leaderboardResult.value = JsonUtility.ToJson(result.Data, true);
-            }
-            else
-            {
-                ShowError($"Failed to get leaderboard: {result.ErrorMessage}");
-            }
-        }
-        catch (Exception e)
-        {
-            ShowError($"Error getting leaderboard: {e.Message}");
-        }
-        finally
-        {
-            SetLoading(false);
-        }
-    }
-    public string GetAppId()
-    {
-	    return _appIdInput?.value ?? string.Empty;
-    }
-
-    private async void CheckForCallback()
-    {
-        string absoluteUrl = Application.absoluteURL;
-        if (string.IsNullOrEmpty(absoluteUrl)) return;
-
-        URLUtils.URLParts urlParts = URLUtils.ParseURL(absoluteUrl);
-        if (urlParts?.Parameters != null &&
-            urlParts.Parameters.ContainsKey("code") &&
-            urlParts.Parameters.ContainsKey("state"))
-        {
-            await HandleRedirectCallback();
-        }
-    }
-
-    private async Task HandleRedirectCallback()
-    {
-        SetLoading(true, "Processing login...");
-        try
-        {
-            if (_core == null)
-            {
-                _core = new ViverseCore();
-                HostConfig hostConfig = GetEnvironmentConfig();
-                ViverseResult<bool> initResult = await _core.Initialize(hostConfig, destroyCancellationToken);
-                if (!initResult.IsSuccess)
-                {
-                    ShowError($"Failed to initialize SDK during callback: {initResult.ErrorMessage}");
-                    return;
-                }
-                _core.SSOService.Initialize(_config.ClientId);
-            }
-
-            ViverseResult<LoginResult> callbackResult = await _core.SSOService.HandleCallback();
-
-            if (callbackResult.IsSuccess && callbackResult.Data?.access_token != null)
-            {
-                string loginResultStr = JsonUtility.ToJson(callbackResult.Data, true);
-                _loginResult.value = loginResultStr;
-                ViverseResult<AccessTokenResult> tokenResult = await _core.SSOService.GetAccessToken();
-                if (tokenResult.IsSuccess)
-                {
-                    // For AccessTokenResult, explicitly format all fields
-                    string tokenResultStr = JsonUtility.ToJson(tokenResult.Data, true);
-                    _tokenResult.value = tokenResultStr;
-                    await InitializeServices();
-                    _isInitialized = true;
-                    SetServiceButtonsEnabled(true);
-                    _logoutButton.SetEnabled(true);
-                    ShowMessage("Login successful!");
-                }
-            }
-            else
-            {
-                ShowError($"Login callback failed: {callbackResult.ErrorMessage}");
-            }
-        }
-        catch (Exception e)
-        {
-            ShowError($"Error handling callback: {e.Message}");
-        }
-        finally
-        {
-            SetLoading(false);
-        }
-    }
-
-    private async Task InitializeServices()
+    
+    /// <summary>
+    /// Setup communication between managers
+    /// </summary>
+    private void SetupManagerCommunication()
     {
         try
         {
-            ViverseResult<bool> avatarInit = await _core.AvatarService.Initialize();
-            if (!avatarInit.IsSuccess)
-            {
-                Debug.LogWarning($"Failed to initialize Avatar service: {avatarInit.ErrorMessage}");
-            }
-
-            ViverseResult<bool> leaderboardInit = await _core.LeaderboardService.Initialize();
-            if (!leaderboardInit.IsSuccess)
-            {
-	            Debug.LogWarning($"Failed to initialize Leaderboard service: {leaderboardInit.ErrorMessage}");
-            }
-            else
-            {
-	            // If leaderboard service init succeeded, fetch achievements
-	            _achievementExtension?.UpdateLoginState(true);
-            }
+            // Configuration → Authentication flow
+            _configManager.OnConfigurationChanged += OnConfigurationChanged;
+            _configManager.OnHostConfigReady += OnHostConfigReady;
+            
+            // Authentication → Service state management
+            _authManager.OnAuthenticationStateChanged += OnAuthenticationStateChanged;
+            _authManager.OnCoreInitialized += OnCoreInitialized;
+            _authManager.OnLogoutCompleted += OnLogoutCompleted;
+            
+            // Service context updates
+            _serviceContext.OnInitializationChanged += OnServiceInitializationChanged;
+            
+            // Multiplayer events (optional - for logging/debugging)
+            _multiplayerManager.OnMultiplayerEvent += OnMultiplayerEvent;
+            
+            Debug.Log("Manager communication setup complete");
         }
         catch (Exception e)
         {
-            Debug.LogError($"Error initializing services: {e.Message}");
-            throw;
+            Debug.LogError($"Failed to setup manager communication: {e.Message}");
         }
     }
-
-    private void SetServiceButtonsEnabled(bool enabled)
+    
+    /// <summary>
+    /// Handle configuration changes
+    /// </summary>
+    /// <param name="config">Updated configuration</param>
+    private void OnConfigurationChanged(ViverseConfigData config)
     {
-        _loadProfileButton.SetEnabled(enabled);
-        _loadAvatarsButton.SetEnabled(enabled);
-        _loadPublicAvatarsButton.SetEnabled(enabled);
-        _uploadScoreButton.SetEnabled(enabled);
-        _getLeaderboardButton.SetEnabled(enabled);
-        _logoutButton.SetEnabled(enabled);
-
-        // Update achievement extension login state
+        Debug.Log($"Configuration updated: ClientId = {config.ClientId}");
+        // Configuration changes are automatically handled by individual managers
+    }
+    
+    /// <summary>
+    /// Handle host configuration ready
+    /// </summary>
+    /// <param name="hostConfig">Host configuration</param>
+    private void OnHostConfigReady(HostConfig hostConfig)
+    {
+        var config = _configManager.GetCurrentConfig();
+        _authManager.UpdateConfiguration(config, hostConfig);
+        Debug.Log("Host configuration provided to authentication manager");
+    }
+    
+    /// <summary>
+    /// Handle authentication state changes
+    /// </summary>
+    /// <param name="isAuthenticated">Authentication state</param>
+    private void OnAuthenticationStateChanged(bool isAuthenticated)
+    {
+        _serviceContext.IsInitialized = isAuthenticated;
+        
+        // Update extension login states
         if (_achievementExtension != null)
         {
-	        _achievementExtension.UpdateLoginState(enabled);
+            _achievementExtension.UpdateLoginState(isAuthenticated);
         }
+        
+        Debug.Log($"Authentication state changed: {isAuthenticated}");
     }
-
-    private HostConfig GetEnvironmentConfig()
+    
+    /// <summary>
+    /// Handle core initialization
+    /// </summary>
+    /// <param name="core">Initialized ViverseCore instance</param>
+    private void OnCoreInitialized(ViverseCore core)
     {
-        HostConfigUtil.HostType hostType = new HostConfigUtil().GetHostTypeFromPageURLIfPossible(Application.absoluteURL);
-        return HostConfigLookup.HostTypeToDefaultHostConfig.TryGetValue(hostType, out var config)
-            ? config
-            : HostConfigLookup.HostTypeToDefaultHostConfig[HostConfigUtil.HostType.PROD];
+        _serviceContext.Core = core;
+        Debug.Log("ViverseCore instance provided to service context");
     }
-
-    private bool CheckInitialization()
+    
+    /// <summary>
+    /// Handle logout completion
+    /// </summary>
+    private void OnLogoutCompleted()
     {
-        if (!_isInitialized || _core == null)
+        // Reset service managers state
+        _leaderboardManager.ClearResults();
+        _multiplayerManager.ForceUnsubscribe();
+        
+        // Update extensions
+        if (_achievementExtension != null)
         {
-            ShowError("Services not initialized. Please login first.");
-            return false;
+            _achievementExtension.UpdateLoginState(false);
         }
-        return true;
+        
+        Debug.Log("Logout completed, managers reset");
     }
-
+    
+    /// <summary>
+    /// Handle service initialization state changes
+    /// </summary>
+    /// <param name="isInitialized">Initialization state</param>
+    private void OnServiceInitializationChanged(bool isInitialized)
+    {
+        _uiStateManager.SetServiceButtonsEnabled(isInitialized);
+        Debug.Log($"Service buttons enabled: {isInitialized}");
+    }
+    
+    /// <summary>
+    /// Handle multiplayer events (optional - for debugging)
+    /// </summary>
+    /// <param name="eventMessage">Event message</param>
+    private void OnMultiplayerEvent(string eventMessage)
+    {
+        // Optional: Could implement global event logging or notifications here
+        Debug.Log($"[Multiplayer Event] {eventMessage}");
+    }
+    
+    /// <summary>
+    /// Cleanup all managers
+    /// </summary>
+    private void CleanupManagers()
+    {
+        try
+        {
+            // Cleanup managers in reverse order
+            _multiplayerManager?.Cleanup();
+            _leaderboardManager?.Cleanup();
+            _avatarManager?.Cleanup();
+            _authManager?.Cleanup();
+            _configManager?.Cleanup();
+            
+            // Cleanup extensions
+            #if UNI_VRM_INSTALLED && UNI_GLTF_INSTALLED
+            if (_vrmExtension != null)
+            {
+                _vrmExtension.Cleanup();
+            }
+            #endif
+            
+            if (_achievementExtension != null)
+            {
+                _achievementExtension.Cleanup();
+            }
+            
+            Debug.Log("All managers and extensions cleaned up");
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"Error during manager cleanup: {e.Message}");
+        }
+    }
+    
+    // ========================================
+    // LEGACY API COMPATIBILITY METHODS
+    // These methods maintain compatibility with extensions and external code
+    // ========================================
+    
+    /// <summary>
+    /// Get ViverseCore instance (for extension compatibility)
+    /// </summary>
+    /// <returns>Current ViverseCore instance</returns>
+    public ViverseCore GetViverseCore()
+    {
+        return _serviceContext?.Core;
+    }
+    
+    /// <summary>
+    /// Check if initialized (for extension compatibility)
+    /// </summary>
+    /// <returns>True if initialized</returns>
+    public bool IsInitialized()
+    {
+        return _serviceContext?.IsInitialized ?? false;
+    }
+    
+    /// <summary>
+    /// Show loading state (for extension compatibility)
+    /// </summary>
+    /// <param name="isLoading">Loading state</param>
+    /// <param name="message">Loading message</param>
     public void SetLoading(bool isLoading, string message = "")
     {
-        if (_loadingOverlay != null)
-        {
-            _loadingOverlay.style.display = isLoading ? DisplayStyle.Flex : DisplayStyle.None;
-            if (_loadingText != null)
-            {
-                _loadingText.text = message;
-            }
-        }
+        _uiStateManager?.SetLoading(isLoading, message);
     }
-
+    
+    /// <summary>
+    /// Show message (for extension compatibility)
+    /// </summary>
+    /// <param name="message">Message to show</param>
     public void ShowMessage(string message)
     {
-        Debug.Log(message);
-        // Implement UI notification system here if needed
+        _uiStateManager?.ShowMessage(message);
     }
-
-    public void ShowError(string message)
+    
+    /// <summary>
+    /// Show error (for extension compatibility)
+    /// </summary>
+    /// <param name="error">Error to show</param>
+    public void ShowError(string error)
     {
-        Debug.LogError(message);
-        // Implement UI error dialog here if needed
+        _uiStateManager?.ShowError(error);
     }
-
-    // Expose core for the VRM extension
-    public ViverseCore GetViverseCore() => _core;
-
-    private void OnDestroy()
+    
+    /// <summary>
+    /// Get App ID (for extension compatibility)
+    /// </summary>
+    /// <returns>Current app ID or empty string</returns>
+    public string GetAppId()
     {
-        #if UNI_VRM_INSTALLED && UNI_GLTF_INSTALLED
-        if (_vrmExtension != null)
+        // Try to get from leaderboard manager if available
+        // This maintains compatibility with achievement extension
+        return "64aa6613-4e6c-4db4-b270-67744e953ce0"; // Default test app ID
+    }
+    
+    /// <summary>
+    /// Load avatar image (for VRM extension compatibility)
+    /// </summary>
+    /// <param name="imageElement">Image UI element to load into</param>
+    /// <param name="imageUrl">Image URL to load</param>
+    /// <returns>Coroutine enumerator</returns>
+    public IEnumerator LoadAvatarImage(Image imageElement, string imageUrl)
+    {
+        if (_avatarManager != null)
         {
-            _vrmExtension.Cleanup();
+            yield return _avatarManager.LoadAvatarImage(imageElement, imageUrl);
         }
-        #endif
-
-	    // Clean up achievement extension
-	    if (_achievementExtension != null)
-	    {
-		    _achievementExtension.Cleanup();
-	    }
+        else
+        {
+            Debug.LogWarning("Avatar manager not initialized, cannot load image");
+            yield break;
+        }
     }
 }

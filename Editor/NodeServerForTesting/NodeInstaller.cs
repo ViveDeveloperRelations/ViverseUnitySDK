@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
@@ -6,6 +7,7 @@ using System.Net;
 using System.Threading.Tasks;
 using UnityEditor;
 using UnityEngine;
+using System.Text.RegularExpressions;
 using Debug = UnityEngine.Debug;
 
 public class NodeInstaller
@@ -235,7 +237,7 @@ public class NodeInstaller
 			{
 				string nodeBin = Path.Combine(NodeInstallPath, "bin", "node");
 				string npmScript = Path.Combine(NodeInstallPath, "bin", "npm");
-				string npmJsPath = Path.Combine(NodeInstallPath, "lib", "node_modules", "npm", "bin", "npm-cli.js");
+				string npmJsPath = Path.Combine(NodeModulesDirectoryPath(), "npm", "bin", "npm-cli.js");
 
 				Debug.Log($"Validating extracted files on macOS:");
 				Debug.Log($"- Node binary exists: {File.Exists(nodeBin)}");
@@ -473,11 +475,13 @@ public class NodeInstaller
 
 		if (Application.platform != RuntimePlatform.WindowsEditor)
 		{
-			if (Directory.Exists(Path.Combine(NodeInstallPath, "lib", "node_modules", "npm")))
+			string nodeModulesDirectoryPath = NodeModulesDirectoryPath();
+			//Should this should be a check that npm is present in the modules?
+			if (Directory.Exists(Path.Combine(nodeModulesDirectoryPath, "npm")))
 			{
 				Debug.Log("npm module directory found");
 
-				string npmCliPath = Path.Combine(NodeInstallPath, "lib", "node_modules", "npm", "bin", "npm-cli.js");
+				string npmCliPath = Path.Combine(nodeModulesDirectoryPath, "npm", "bin", "npm-cli.js");
 				Debug.Log($"npm-cli.js exists: {File.Exists(npmCliPath)}");
 			}
 			else
@@ -508,6 +512,115 @@ public class NodeInstaller
 		}
 	}
 
+	public struct NodeModuleVersionInfo
+	{
+		public string NodeModuleName;
+		public string NodeModuleVersion;
+	}
+	private static string ParseVersionFromPackageJson(string packageJsonPath)
+	{
+	    try
+	    {
+	        if (!File.Exists(packageJsonPath))
+	        {
+	            Debug.LogWarning($"package.json not found at: {packageJsonPath}");
+	            return "unknown";
+	        }
+
+	        string jsonContent = File.ReadAllText(packageJsonPath);
+	        // Regex to find "version": "x.y.z" (allowing for spaces and ensuring it's a property)
+	        Match match = Regex.Match(jsonContent, "\"version\"\\s*:\\s*\"([^\"]+)\"");
+	        if (match.Success && match.Groups.Count > 1)
+	        {
+	            return match.Groups[1].Value;
+	        }
+	        Debug.LogWarning($"Could not parse version from {packageJsonPath}. 'version' field might be missing or malformed.");
+	    }
+	    catch (Exception ex)
+	    {
+	        Debug.LogError($"Error reading or parsing version from {packageJsonPath}: {ex.Message}");
+	    }
+	    return "unknown";
+	}
+
+	public static List<NodeModuleVersionInfo> GetNodeModulesFromDirectory(string nodeModulesDirectoryPath)
+    {
+	    List<NodeModuleVersionInfo> modules = new List<NodeModuleVersionInfo>();
+        if (!Directory.Exists(nodeModulesDirectoryPath))
+        {
+            // This is a normal case if modules haven't been installed yet.
+            Debug.Log($"Node modules directory not found or accessible: {nodeModulesDirectoryPath}");
+            return modules;
+        }
+
+        try
+        {
+            foreach (string dirPath in Directory.GetDirectories(nodeModulesDirectoryPath))
+            {
+                string dirName = Path.GetFileName(dirPath);
+
+                // Skip hidden directories or special directories like .bin, .cache
+                if (dirName.StartsWith(".")) continue;
+
+                if (dirName.StartsWith("@")) // This is a scope directory, e.g., @types
+                {
+                    try
+                    {
+                        foreach (string scopedPackageDirPath in Directory.GetDirectories(dirPath))
+                        {
+                            string scopedPackageNamePart = Path.GetFileName(scopedPackageDirPath);
+                            string fullPackageName = $"{dirName}/{scopedPackageNamePart}"; // e.g., @types/node
+                            string packageJsonPath = Path.Combine(scopedPackageDirPath, "package.json");
+
+                            string version = ParseVersionFromPackageJson(packageJsonPath);
+                            if (version != "unknown") // Only add if version was found and parsed
+                            {
+                                modules.Add(new NodeInstaller.NodeModuleVersionInfo { NodeModuleName = fullPackageName, NodeModuleVersion = version });
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.LogWarning($"Could not fully process scoped directory {dirName} in {nodeModulesDirectoryPath}. Error: {ex.Message}");
+                    }
+                }
+                else // This is potentially a non-scoped package directory
+                {
+                    string packageJsonPath = Path.Combine(dirPath, "package.json");
+                    if (File.Exists(packageJsonPath)) // Check if it's an actual package
+                    {
+                        string version = ParseVersionFromPackageJson(packageJsonPath);
+                        if (version != "unknown") // Only add if version was found and parsed
+                        {
+                            modules.Add(new NodeInstaller.NodeModuleVersionInfo { NodeModuleName = dirName, NodeModuleVersion = version });
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"Failed to list node modules from {nodeModulesDirectoryPath}: {ex.Message}");
+        }
+        return modules;
+    }
+	public static bool PackageIsInstalled(string nodeModulesDirectory, string packageName, string packageVersion = null)
+	{
+	    List<NodeModuleVersionInfo> packagesInstalled = GetNodeModulesFromDirectory(nodeModulesDirectory);
+	    foreach (NodeModuleVersionInfo installedPackage in packagesInstalled)
+	    {
+	        if (installedPackage.NodeModuleName.Equals(packageName, StringComparison.OrdinalIgnoreCase))
+	        {
+	            if (string.IsNullOrEmpty(packageVersion) || installedPackage.NodeModuleVersion.Equals(packageVersion))
+	            {
+	                return true;
+	            }
+	            // Potentially add semver check here if needed, for now, it's exact match for version.
+	        }
+	    }
+	    return false;
+	}
+
 	//[MenuItem("Tools/Node.js/Verify Installation")]
 	public static void VerifyNodeInstallation()
 	{
@@ -533,7 +646,7 @@ public class NodeInstaller
 			if (Application.platform == RuntimePlatform.OSXEditor)
 			{
 				// On macOS, directly use node to run the npm-cli.js file
-				string npmJsPath = Path.Combine(NodeInstallPath, "lib", "node_modules", "npm", "bin", "npm-cli.js");
+				string npmJsPath = Path.Combine(NodeModulesDirectoryPath(), "npm", "bin", "npm-cli.js");
 				if (File.Exists(npmJsPath))
 				{
 					npmVersion = RunCommand(NodeExecutablePath, $"\"{npmJsPath}\" --version");
@@ -562,8 +675,7 @@ public class NodeInstaller
 					if (Application.platform == RuntimePlatform.OSXEditor)
 					{
 						// On macOS, directly use node to run the npx-cli.js file
-						string npxJsPath = Path.Combine(NodeInstallPath, "lib", "node_modules", "npm", "bin",
-							"npx-cli.js");
+						string npxJsPath = Path.Combine(NodeModulesDirectoryPath(), "npm", "bin", "npx-cli.js");
 						if (File.Exists(npxJsPath))
 						{
 							npxVersion = RunCommand(NodeExecutablePath, $"\"{npxJsPath}\" --version");
@@ -619,11 +731,17 @@ public class NodeInstaller
 		// For macOS/Linux, set NODE_PATH to find modules
 		if (Application.platform != RuntimePlatform.WindowsEditor)
 		{
-			string nodeModulesPath = Path.Combine(NodeInstallPath, "lib", "node_modules");
+			string nodeModulesPath = NodeModulesDirectoryPath();
 			Environment.SetEnvironmentVariable("NODE_PATH", nodeModulesPath);
 		}
 
 		//Debug.Log($"Environment PATH set to: {Environment.GetEnvironmentVariable("PATH")}");
+	}
+
+	public static string NodeModulesDirectoryPath()
+	{
+		string nodeModulesPath = Path.Combine(NodeInstallPath, "lib", "node_modules");
+		return nodeModulesPath;
 	}
 
 	private static string RunCommand(string command, string arguments)
@@ -659,7 +777,7 @@ public class NodeInstaller
 		              psi.EnvironmentVariables["PATH"];
 		psi.EnvironmentVariables["PATH"] = newPath;
 
-		string nodeModulesPath = Path.Combine(NodeInstallPath, "lib", "node_modules");
+		string nodeModulesPath = NodeModulesDirectoryPath();
 		psi.EnvironmentVariables["NODE_PATH"] = nodeModulesPath;
 
 		// For macOS/Linux, set NODE_PATH to the lib/node_modules
@@ -672,8 +790,8 @@ public class NodeInstaller
 			{
 				// For npm/npx on macOS, we'll directly call node with the npm/npx JS file
 				string jsFile = command.EndsWith("/npm")
-					? Path.Combine(NodeInstallPath, "lib", "node_modules", "npm", "bin", "npm-cli.js")
-					: Path.Combine(NodeInstallPath, "lib", "node_modules", "npm", "bin", "npx-cli.js");
+					? Path.Combine(NodeModulesDirectoryPath(), "npm", "bin", "npm-cli.js")
+					: Path.Combine(NodeModulesDirectoryPath(), "npm", "bin", "npx-cli.js");
 
 				if (File.Exists(jsFile))
 				{
@@ -685,26 +803,26 @@ public class NodeInstaller
 
 		Process process = new Process();
 		process.StartInfo = psi;
-		
+
 		// Attach event handlers before starting the process
 		if (onOutputReceived != null)
 		{
 			process.OutputDataReceived += onOutputReceived;
 		}
-		
+
 		if (onErrorReceived != null)
 		{
 			process.ErrorDataReceived += onErrorReceived;
 		}
-		
+
 		process.Start();
-		
+
 		// Begin asynchronous reading if event handlers are provided
 		if (onOutputReceived != null)
 		{
 			process.BeginOutputReadLine();
 		}
-		
+
 		if (onErrorReceived != null)
 		{
 			process.BeginErrorReadLine();
@@ -728,7 +846,7 @@ public class NodeInstaller
 		// For macOS, we need to check the npm JS file
 		if (Application.platform == RuntimePlatform.OSXEditor)
 		{
-			string npmJsPath = Path.Combine(NodeInstallPath, "lib", "node_modules", "npm", "bin", "npm-cli.js");
+			string npmJsPath = Path.Combine(NodeModulesDirectoryPath(), "npm", "bin", "npm-cli.js");
 			npmExists = File.Exists(npmJsPath);
 		}
 		else
@@ -814,7 +932,7 @@ public class NodeInstaller
 		if (Application.platform == RuntimePlatform.OSXEditor)
 		{
 			// On macOS, directly use node to run the npm-cli.js file
-			string npmJsPath = Path.Combine(NodeInstallPath, "lib", "node_modules", "npm", "bin", "npm-cli.js");
+			string npmJsPath = Path.Combine(NodeModulesDirectoryPath(), "npm", "bin", "npm-cli.js");
 			if (File.Exists(npmJsPath))
 			{
 				return RunCommand(NodeExecutablePath, $"\"{npmJsPath}\" {command} {arguments}");
@@ -845,7 +963,7 @@ public class NodeInstaller
 		if (Application.platform == RuntimePlatform.OSXEditor)
 		{
 			// On macOS, directly use node to run the npx-cli.js file
-			string npxJsPath = Path.Combine(NodeInstallPath, "lib", "node_modules", "npm", "bin", "npx-cli.js");
+			string npxJsPath = Path.Combine(NodeModulesDirectoryPath(), "npm", "bin", "npx-cli.js");
 			if (File.Exists(npxJsPath))
 			{
 				return RunCommand(NodeExecutablePath, $"\"{npxJsPath}\" {command} {arguments}");
